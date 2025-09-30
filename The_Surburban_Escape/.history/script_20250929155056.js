@@ -135,9 +135,9 @@ if (addUsageBtn && usageModal) {
         if (userRole === 'admin') {
           roomsSection.style.display = 'block';
           bookingsSection.style.display = 'block';
-          // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-          // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-          // inventorySection.style.display = 'block'; // Hidden complex admin sections
+          conferencesSection.style.display = 'block';
+          conferenceBookingsSection.style.display = 'block';
+          inventorySection.style.display = 'block';
           document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
           officeUsageSection.style.display = 'block';
         }
@@ -363,9 +363,6 @@ if (addUsageBtn && usageModal) {
         loadOfficeUsage(),
         populateRoomDropdown() // Add this to populate room dropdown
       ]);
-
-      // Add sample inventory item after loading
-      addSampleInventoryItem();
     } catch (err) {
       console.error('Error loading data:', err);
       alert('Failed to load data. Please refresh.');
@@ -767,7 +764,7 @@ if (addUsageBtn && usageModal) {
   }
   
   // Update task status
-  window.updateTaskStatus = async function(taskId, status) {
+  async function updateTaskStatus(taskId, status) {
     try {
       await apiFetch(`/housekeeping-tasks/${taskId}`, {
         method: 'PUT',
@@ -778,7 +775,7 @@ if (addUsageBtn && usageModal) {
       console.error('Error updating task status:', err);
       alert('Failed to update task status');
     }
-  };
+  }
 
   // Assign housekeeping task
   window.assignHousekeeping = async function(roomId, staffId) {
@@ -887,12 +884,10 @@ if (addUsageBtn && usageModal) {
     document.getElementById('lateCheckouts').innerHTML = lateCheckouts.map(b => `<div>${b.guest_name} overdue from ${b.room_name}</div>`).join('');
   }
 
-  // Load inventory items with card-based UI
+  // Load inventory items with enhanced UI
   async function loadInventory() {
     const items = await apiFetch('/inventory-items');
-    const container = document.getElementById('inventoryCardsContainer');
-    container.innerHTML = '';
-
+    inventoryTableBody.innerHTML = '';
     // Populate transaction select
     transactionItemId.innerHTML = '<option value="">Select Item</option>';
 
@@ -905,44 +900,62 @@ if (addUsageBtn && usageModal) {
       option.textContent = `${item.name} (${item.current_stock} ${item.unit})`;
       transactionItemId.appendChild(option);
 
-      // Create card element
-      const card = document.createElement('div');
-      card.className = 'inventory-card';
+      const row = inventoryTableBody.insertRow();
 
-      // Calculate stock metrics
-      const stockPercentage = Math.min((item.current_stock / item.total_stock) * 100, 100);
-      const stockStatus = getStockStatus(item);
-      const totalValue = item.current_stock * item.price_per_unit;
+      // ID cell
+      row.insertCell(0).textContent = item.id;
 
-      // Determine progress bar color
-      let progressClass = 'progress';
-      if (stockStatus === 'critical') progressClass += ' critical';
-      else if (stockStatus === 'low') progressClass += ' low';
-      else if (stockStatus === 'overstock') progressClass += ' overstock';
-
-      card.innerHTML = `
-        <h3>${item.name}</h3>
-        <p><strong>Category:</strong> ${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</p>
-        <p><strong>Total Stock:</strong> ${item.total_stock} ${item.unit}</p>
-        <p><strong>Current Stock:</strong> ${item.current_stock} ${item.unit}</p>
-        <p><strong>Min Level:</strong> ${item.min_level}</p>
-        <p><strong>Reorder Threshold:</strong> ${item.reorder_threshold}</p>
-        <p><strong>Price per Unit:</strong> $${item.price_per_unit}</p>
-        <p><strong>Status:</strong> ${item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑'} ${item.status}</p>
-        ${item.description ? `<p><strong>Description:</strong> ${item.description}</p>` : ''}
-        <p><strong>Stock Level:</strong> ${Math.round(stockPercentage)}%</p>
-
-        <div class="progress-bar">
-          <div class="${progressClass}" style="width: ${stockPercentage}%"></div>
-        </div>
-
-        <div class="card-actions">
-          <button class="btn btn-use" onclick="useInventoryItem(${item.id}, '${item.name}', ${item.current_stock})">Use Item</button>
-          <button class="btn btn-reorder" onclick="reorderItem('${item.name}', ${item.min_level * 2})">Reorder</button>
+      // Item details cell
+      const detailsCell = row.insertCell(1);
+      detailsCell.innerHTML = `
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-description">${item.description || 'No description'}</div>
+          <div class="item-category">
+            <span class="category-badge ${item.category}">${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</span>
+          </div>
         </div>
       `;
 
-      container.appendChild(card);
+      // Stock levels cell with visual indicator
+      const stockCell = row.insertCell(2);
+      const stockPercentage = Math.min((item.current_stock / item.total_stock) * 100, 100);
+      const stockStatus = getStockStatus(item);
+      stockCell.innerHTML = `
+        <div class="stock-indicator">
+          <div class="stock-info">
+            <div class="stock-bar-container">
+              <div class="stock-bar">
+                <div class="stock-fill ${stockStatus}" style="width: ${stockPercentage}%"></div>
+              </div>
+            </div>
+            <div class="stock-percentage">${Math.round(stockPercentage)}%</div>
+          </div>
+          <div class="stock-details">
+            <div class="current-stock">${item.current_stock} / ${item.total_stock} ${item.unit}</div>
+            <div class="stock-meta">Min: ${item.min_level} | Reorder: ${item.reorder_threshold}</div>
+          </div>
+        </div>
+      `;
+
+      // Status cell
+      const statusCell = row.insertCell(3);
+      const statusIcon = item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑';
+      statusCell.innerHTML = `
+        <span class="status-badge ${item.status}">
+          ${statusIcon} ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+        </span>
+      `;
+
+      // Actions cell
+      const actionsCell = row.insertCell(4);
+      actionsCell.innerHTML = `
+        <div class="action-buttons">
+          <button class="btn-view" onclick="viewItemDetails(${item.id})" title="View Details">👁️</button>
+          <button class="btn-edit" onclick="editInventory(${item.id}, '${item.name.replace(/'/g, "\\'")}', '${(item.description || '').replace(/'/g, "\\'")}', '${item.category}', ${item.total_stock}, ${item.current_stock}, ${item.min_level}, ${item.reorder_threshold}, '${item.unit.replace(/'/g, "\\'")}', ${item.price_per_unit}, '${item.status.replace(/'/g, "\\'")}')" title="Edit">✏️</button>
+          <button class="btn-delete" onclick="deleteInventory(${item.id})" title="Delete">🗑️</button>
+        </div>
+      `;
     });
   }
 
@@ -987,137 +1000,18 @@ if (addUsageBtn && usageModal) {
     });
   }
 
-  // Load low stock alerts with enhanced UI
+  // Load low stock alerts
   async function loadAlerts() {
     const alerts = await apiFetch('/inventory/alerts');
     alertsTableBody.innerHTML = '';
     alerts.forEach(alert => {
       const row = alertsTableBody.insertRow();
-      const alertLevel = alert.current_stock === 0 ? 'critical' : alert.current_stock <= alert.min_level * 0.5 ? 'high' : 'medium';
-
-      row.innerHTML = `
-        <td>
-          <div class="alert-item">
-            <div class="alert-name">${alert.name}</div>
-            <div class="alert-description">Requires immediate attention</div>
-          </div>
-        </td>
-        <td>
-          <div class="alert-status ${alertLevel}">
-            <span class="status-indicator ${alertLevel}"></span>
-            ${alert.current_stock} units remaining
-          </div>
-        </td>
-        <td>
-          <button class="reorder-btn" onclick="reorderItem('${alert.name}', ${alert.min_level * 2})">
-            📦 Reorder Now
-          </button>
-        </td>
-      `;
+      row.insertCell(0).textContent = alert.name;
+      row.insertCell(1).textContent = alert.current_stock;
+      row.insertCell(2).textContent = alert.min_level;
+      row.style.backgroundColor = '#fff3cd'; // Warning color
     });
   }
-
-  // Add sample inventory item (Cleaning Supplies)
-  async function addSampleInventoryItem() {
-    try {
-      // Check if we already have this item
-      const items = await apiFetch('/inventory-items');
-      const existingItem = items.find(item => item.name.toLowerCase().includes('cleaning'));
-
-      if (!existingItem) {
-        const sampleItem = {
-          name: 'Cleaning Supplies',
-          description: 'Various cleaning products and supplies for hotel maintenance',
-          category: 'consumables',
-          total_stock: 50,
-          current_stock: 45, // Fixed: was 125, now 45 (within total capacity)
-          min_level: 15,
-          reorder_threshold: 25,
-          unit: 'bottles',
-          price_per_unit: 5.00,
-          status: 'active'
-        };
-
-        await apiFetch('/inventory-items', {
-          method: 'POST',
-          body: JSON.stringify(sampleItem)
-        });
-
-        console.log('Sample inventory item added successfully');
-      }
-    } catch (err) {
-      console.log('Sample item may already exist or error occurred:', err.message);
-    }
-  }
-
-  // Use inventory item function
-  window.useInventoryItem = async function(itemId, itemName, currentStock) {
-    const quantity = prompt(`How many units of ${itemName} would you like to use? (Current stock: ${currentStock})`);
-
-    if (quantity === null || quantity === '') return;
-
-    const useQuantity = parseInt(quantity);
-    if (isNaN(useQuantity) || useQuantity <= 0) {
-      alert('Please enter a valid positive number');
-      return;
-    }
-
-    if (useQuantity > currentStock) {
-      alert(`Cannot use ${useQuantity} units. Only ${currentStock} units available.`);
-      return;
-    }
-
-    if (confirm(`Use ${useQuantity} units of ${itemName}?`)) {
-      try {
-        // Create stock-out transaction
-        await apiFetch('/stock-transactions', {
-          method: 'POST',
-          body: JSON.stringify({
-            item_id: itemId,
-            type: 'out',
-            quantity: useQuantity,
-            reason: 'Item usage'
-          })
-        });
-
-        alert(`Successfully used ${useQuantity} units of ${itemName}`);
-        loadInventory();
-        loadAlerts();
-      } catch (err) {
-        alert('Error processing usage: ' + err.message);
-      }
-    }
-  };
-
-  // Reorder item function
-  window.reorderItem = async function(itemName, quantity) {
-    if (confirm(`Create reorder request for ${itemName} (${quantity} units)?`)) {
-      try {
-        // Find the item
-        const items = await apiFetch('/inventory-items');
-        const item = items.find(i => i.name === itemName);
-
-        if (item) {
-          // Create stock-in transaction
-          await apiFetch('/stock-transactions', {
-            method: 'POST',
-            body: JSON.stringify({
-              item_id: item.id,
-              type: 'in',
-              quantity: quantity,
-              reason: 'Reorder - Low stock alert'
-            })
-          });
-
-          alert(`Reorder processed! ${quantity} units added to ${itemName}`);
-          loadInventory();
-          loadAlerts();
-        }
-      } catch (err) {
-        alert('Error processing reorder: ' + err.message);
-      }
-    }
-  };
 
   // Login handler
   loginForm.addEventListener('submit', async (e) => {
@@ -1151,9 +1045,9 @@ if (addUsageBtn && usageModal) {
       if (userRole === 'admin') {
         roomsSection.style.display = 'block';
         bookingsSection.style.display = 'block';
-        // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-        // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-        // inventorySection.style.display = 'block'; // Hidden complex admin sections
+        conferencesSection.style.display = 'block';
+        conferenceBookingsSection.style.display = 'block';
+        inventorySection.style.display = 'block';
         document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
         officeUsageSection.style.display = 'block';
       } else if (userRole === 'staff') {
@@ -1405,118 +1299,40 @@ window.deleteInventory = async function(id) {
   }
 };
 
-// Enhanced view item details
+// View item details
 window.viewItemDetails = async function(id) {
   try {
-    const items = await apiFetch('/inventory-items');
-    const selectedItem = items.find(i => i.id === id);
+    const item = await apiFetch('/inventory-items');
+    const selectedItem = item.find(i => i.id === id);
     if (!selectedItem) return;
 
-    // Calculate stock metrics
-    const stockPercentage = Math.min((selectedItem.current_stock / selectedItem.total_stock) * 100, 100);
-    const stockStatus = getStockStatus(selectedItem);
-    const totalValue = selectedItem.current_stock * selectedItem.price_per_unit;
+    // Populate item info
+    document.getElementById('modalItemName').textContent = selectedItem.name;
+    document.getElementById('modalDescription').textContent = selectedItem.description || 'N/A';
+    document.getElementById('modalCategory').textContent = selectedItem.category;
+    document.getElementById('modalTotalStock').textContent = selectedItem.total_stock;
+    document.getElementById('modalUnit').textContent = selectedItem.unit;
+    document.getElementById('modalUnit2').textContent = selectedItem.unit;
+    document.getElementById('modalCurrentStock').textContent = selectedItem.current_stock;
+    document.getElementById('modalMinLevel').textContent = selectedItem.min_level;
+    document.getElementById('modalReorderThreshold').textContent = selectedItem.reorder_threshold;
+    document.getElementById('modalPrice').textContent = selectedItem.price_per_unit;
+    document.getElementById('modalStatus').textContent = selectedItem.status;
 
-    // Update modal with enhanced layout
-    const modal = document.getElementById('itemDetailsModal');
-    const modalContent = modal.querySelector('.modal-content');
-
-    modalContent.innerHTML = `
-      <div class="modal-header">
-        <span class="close">&times;</span>
-        <h3>${selectedItem.name}</h3>
-        <div class="item-status-badge ${selectedItem.status}">
-          ${selectedItem.status === 'active' ? '✅' : selectedItem.status === 'inactive' ? '⏸️' : '🛑'}
-          ${selectedItem.status.charAt(0).toUpperCase() + selectedItem.status.slice(1)}
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="modal-info-grid">
-          <div class="info-card">
-            <h5>📊 Stock Information</h5>
-            <p><strong>Current Stock:</strong> ${selectedItem.current_stock} ${selectedItem.unit}</p>
-            <p><strong>Total Capacity:</strong> ${selectedItem.total_stock} ${selectedItem.unit}</p>
-            <p><strong>Stock Level:</strong> ${Math.round(stockPercentage)}%</p>
-            <div class="stock-bar-container" style="margin-top: 8px;">
-              <div class="stock-bar">
-                <div class="stock-fill ${stockStatus}" style="width: ${stockPercentage}%"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-card">
-            <h5>⚙️ Configuration</h5>
-            <p><strong>Minimum Level:</strong> ${selectedItem.min_level} ${selectedItem.unit}</p>
-            <p><strong>Reorder Threshold:</strong> ${selectedItem.reorder_threshold} ${selectedItem.unit}</p>
-            <p><strong>Category:</strong> ${selectedItem.category === 'consumables' ? '🛒' : '🏢'} ${selectedItem.category}</p>
-            <p><strong>Unit:</strong> ${selectedItem.unit}</p>
-          </div>
-
-          <div class="info-card">
-            <h5>💰 Financial Information</h5>
-            <p><strong>Price per Unit:</strong> $${selectedItem.price_per_unit.toFixed(2)}</p>
-            <p><strong>Total Value:</strong> $${totalValue.toFixed(2)}</p>
-            <p><strong>Description:</strong> ${selectedItem.description || 'No description available'}</p>
-          </div>
-        </div>
-
-        <h4 style="margin-bottom: 16px; color: #334155;">📋 Recent Transactions</h4>
-        <div id="modalTransactionsContainer">
-          <div class="loading">Loading transactions...</div>
-        </div>
-      </div>
-    `;
-
-    // Fetch and display recent transactions
-    try {
-      const transactions = await apiFetch(`/stock-transactions?item_id=${id}`);
-      const container = document.getElementById('modalTransactionsContainer');
-
-      if (transactions.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic;">No transactions found</p>';
-      } else {
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.innerHTML = `
-          <thead>
-            <tr style="background: #f8fafc;">
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #e2e8f0;">Date</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #e2e8f0;">Type</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #e2e8f0;">Quantity</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #e2e8f0;">Reason</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-
-        const tbody = table.querySelector('tbody');
-        transactions.slice(0, 10).forEach(trans => {
-          const row = tbody.insertRow();
-          row.innerHTML = `
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${new Date(trans.transaction_date).toLocaleDateString()}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">
-              <span class="transaction-type ${trans.type}">${trans.type === 'in' ? '📈' : trans.type === 'out' ? '📉' : '⚖️'} ${trans.type.toUpperCase()}</span>
-            </td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${trans.quantity} ${selectedItem.unit}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${trans.reason || 'N/A'}</td>
-          `;
-        });
-
-        container.innerHTML = '';
-        container.appendChild(table);
-      }
-    } catch (err) {
-      document.getElementById('modalTransactionsContainer').innerHTML =
-        '<p style="text-align: center; color: #ef4444;">Error loading transactions</p>';
-    }
+    // Fetch recent transactions for this item
+    const transactions = await apiFetch(`/stock-transactions?item_id=${id}`);
+    const modalTBody = document.querySelector('#modalTransactionsTable tbody');
+    modalTBody.innerHTML = '';
+    transactions.slice(0, 10).forEach(trans => { // Last 10 transactions
+      const row = modalTBody.insertRow();
+      row.insertCell(0).textContent = trans.type;
+      row.insertCell(1).textContent = trans.quantity;
+      row.insertCell(2).textContent = trans.reason || 'N/A';
+      row.insertCell(3).textContent = trans.transaction_date;
+    });
 
     // Show modal
-    modal.style.display = 'flex';
-
-    // Reconfigure modal close handler
-    const closeBtn = modal.querySelector('.close');
-    closeBtn.onclick = () => modal.style.display = 'none';
-
+    document.getElementById('itemDetailsModal').style.display = 'flex';
   } catch (err) {
     alert('Error loading item details');
   }

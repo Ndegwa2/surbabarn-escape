@@ -135,9 +135,9 @@ if (addUsageBtn && usageModal) {
         if (userRole === 'admin') {
           roomsSection.style.display = 'block';
           bookingsSection.style.display = 'block';
-          // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-          // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-          // inventorySection.style.display = 'block'; // Hidden complex admin sections
+          conferencesSection.style.display = 'block';
+          conferenceBookingsSection.style.display = 'block';
+          inventorySection.style.display = 'block';
           document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
           officeUsageSection.style.display = 'block';
         }
@@ -767,7 +767,7 @@ if (addUsageBtn && usageModal) {
   }
   
   // Update task status
-  window.updateTaskStatus = async function(taskId, status) {
+  async function updateTaskStatus(taskId, status) {
     try {
       await apiFetch(`/housekeeping-tasks/${taskId}`, {
         method: 'PUT',
@@ -778,7 +778,7 @@ if (addUsageBtn && usageModal) {
       console.error('Error updating task status:', err);
       alert('Failed to update task status');
     }
-  };
+  }
 
   // Assign housekeeping task
   window.assignHousekeeping = async function(roomId, staffId) {
@@ -887,12 +887,10 @@ if (addUsageBtn && usageModal) {
     document.getElementById('lateCheckouts').innerHTML = lateCheckouts.map(b => `<div>${b.guest_name} overdue from ${b.room_name}</div>`).join('');
   }
 
-  // Load inventory items with card-based UI
+  // Load inventory items with enhanced UI
   async function loadInventory() {
     const items = await apiFetch('/inventory-items');
-    const container = document.getElementById('inventoryCardsContainer');
-    container.innerHTML = '';
-
+    inventoryTableBody.innerHTML = '';
     // Populate transaction select
     transactionItemId.innerHTML = '<option value="">Select Item</option>';
 
@@ -905,44 +903,62 @@ if (addUsageBtn && usageModal) {
       option.textContent = `${item.name} (${item.current_stock} ${item.unit})`;
       transactionItemId.appendChild(option);
 
-      // Create card element
-      const card = document.createElement('div');
-      card.className = 'inventory-card';
+      const row = inventoryTableBody.insertRow();
 
-      // Calculate stock metrics
-      const stockPercentage = Math.min((item.current_stock / item.total_stock) * 100, 100);
-      const stockStatus = getStockStatus(item);
-      const totalValue = item.current_stock * item.price_per_unit;
+      // ID cell
+      row.insertCell(0).textContent = item.id;
 
-      // Determine progress bar color
-      let progressClass = 'progress';
-      if (stockStatus === 'critical') progressClass += ' critical';
-      else if (stockStatus === 'low') progressClass += ' low';
-      else if (stockStatus === 'overstock') progressClass += ' overstock';
-
-      card.innerHTML = `
-        <h3>${item.name}</h3>
-        <p><strong>Category:</strong> ${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</p>
-        <p><strong>Total Stock:</strong> ${item.total_stock} ${item.unit}</p>
-        <p><strong>Current Stock:</strong> ${item.current_stock} ${item.unit}</p>
-        <p><strong>Min Level:</strong> ${item.min_level}</p>
-        <p><strong>Reorder Threshold:</strong> ${item.reorder_threshold}</p>
-        <p><strong>Price per Unit:</strong> $${item.price_per_unit}</p>
-        <p><strong>Status:</strong> ${item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑'} ${item.status}</p>
-        ${item.description ? `<p><strong>Description:</strong> ${item.description}</p>` : ''}
-        <p><strong>Stock Level:</strong> ${Math.round(stockPercentage)}%</p>
-
-        <div class="progress-bar">
-          <div class="${progressClass}" style="width: ${stockPercentage}%"></div>
-        </div>
-
-        <div class="card-actions">
-          <button class="btn btn-use" onclick="useInventoryItem(${item.id}, '${item.name}', ${item.current_stock})">Use Item</button>
-          <button class="btn btn-reorder" onclick="reorderItem('${item.name}', ${item.min_level * 2})">Reorder</button>
+      // Item details cell
+      const detailsCell = row.insertCell(1);
+      detailsCell.innerHTML = `
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-description">${item.description || 'No description'}</div>
+          <div class="item-category">
+            <span class="category-badge ${item.category}">${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</span>
+          </div>
         </div>
       `;
 
-      container.appendChild(card);
+      // Stock levels cell with visual indicator
+      const stockCell = row.insertCell(2);
+      const stockPercentage = Math.min((item.current_stock / item.total_stock) * 100, 100);
+      const stockStatus = getStockStatus(item);
+      stockCell.innerHTML = `
+        <div class="stock-indicator">
+          <div class="stock-info">
+            <div class="stock-bar-container">
+              <div class="stock-bar">
+                <div class="stock-fill ${stockStatus}" style="width: ${stockPercentage}%"></div>
+              </div>
+            </div>
+            <div class="stock-percentage">${Math.round(stockPercentage)}%</div>
+          </div>
+          <div class="stock-details">
+            <div class="current-stock">${item.current_stock} / ${item.total_stock} ${item.unit}</div>
+            <div class="stock-meta">Min: ${item.min_level} | Reorder: ${item.reorder_threshold}</div>
+          </div>
+        </div>
+      `;
+
+      // Status cell
+      const statusCell = row.insertCell(3);
+      const statusIcon = item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑';
+      statusCell.innerHTML = `
+        <span class="status-badge ${item.status}">
+          ${statusIcon} ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+        </span>
+      `;
+
+      // Actions cell
+      const actionsCell = row.insertCell(4);
+      actionsCell.innerHTML = `
+        <div class="action-buttons">
+          <button class="btn-view" onclick="viewItemDetails(${item.id})" title="View Details">👁️</button>
+          <button class="btn-edit" onclick="editInventory(${item.id}, '${item.name.replace(/'/g, "\\'")}', '${(item.description || '').replace(/'/g, "\\'")}', '${item.category}', ${item.total_stock}, ${item.current_stock}, ${item.min_level}, ${item.reorder_threshold}, '${item.unit.replace(/'/g, "\\'")}', ${item.price_per_unit}, '${item.status.replace(/'/g, "\\'")}')" title="Edit">✏️</button>
+          <button class="btn-delete" onclick="deleteInventory(${item.id})" title="Delete">🗑️</button>
+        </div>
+      `;
     });
   }
 
@@ -1050,45 +1066,6 @@ if (addUsageBtn && usageModal) {
     }
   }
 
-  // Use inventory item function
-  window.useInventoryItem = async function(itemId, itemName, currentStock) {
-    const quantity = prompt(`How many units of ${itemName} would you like to use? (Current stock: ${currentStock})`);
-
-    if (quantity === null || quantity === '') return;
-
-    const useQuantity = parseInt(quantity);
-    if (isNaN(useQuantity) || useQuantity <= 0) {
-      alert('Please enter a valid positive number');
-      return;
-    }
-
-    if (useQuantity > currentStock) {
-      alert(`Cannot use ${useQuantity} units. Only ${currentStock} units available.`);
-      return;
-    }
-
-    if (confirm(`Use ${useQuantity} units of ${itemName}?`)) {
-      try {
-        // Create stock-out transaction
-        await apiFetch('/stock-transactions', {
-          method: 'POST',
-          body: JSON.stringify({
-            item_id: itemId,
-            type: 'out',
-            quantity: useQuantity,
-            reason: 'Item usage'
-          })
-        });
-
-        alert(`Successfully used ${useQuantity} units of ${itemName}`);
-        loadInventory();
-        loadAlerts();
-      } catch (err) {
-        alert('Error processing usage: ' + err.message);
-      }
-    }
-  };
-
   // Reorder item function
   window.reorderItem = async function(itemName, quantity) {
     if (confirm(`Create reorder request for ${itemName} (${quantity} units)?`)) {
@@ -1151,9 +1128,9 @@ if (addUsageBtn && usageModal) {
       if (userRole === 'admin') {
         roomsSection.style.display = 'block';
         bookingsSection.style.display = 'block';
-        // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-        // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-        // inventorySection.style.display = 'block'; // Hidden complex admin sections
+        conferencesSection.style.display = 'block';
+        conferenceBookingsSection.style.display = 'block';
+        inventorySection.style.display = 'block';
         document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
         officeUsageSection.style.display = 'block';
       } else if (userRole === 'staff') {

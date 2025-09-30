@@ -767,7 +767,7 @@ if (addUsageBtn && usageModal) {
   }
   
   // Update task status
-  window.updateTaskStatus = async function(taskId, status) {
+  async function updateTaskStatus(taskId, status) {
     try {
       await apiFetch(`/housekeeping-tasks/${taskId}`, {
         method: 'PUT',
@@ -778,7 +778,7 @@ if (addUsageBtn && usageModal) {
       console.error('Error updating task status:', err);
       alert('Failed to update task status');
     }
-  };
+  }
 
   // Assign housekeeping task
   window.assignHousekeeping = async function(roomId, staffId) {
@@ -1151,9 +1151,9 @@ if (addUsageBtn && usageModal) {
       if (userRole === 'admin') {
         roomsSection.style.display = 'block';
         bookingsSection.style.display = 'block';
-        // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-        // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-        // inventorySection.style.display = 'block'; // Hidden complex admin sections
+        conferencesSection.style.display = 'block';
+        conferenceBookingsSection.style.display = 'block';
+        inventorySection.style.display = 'block';
         document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
         officeUsageSection.style.display = 'block';
       } else if (userRole === 'staff') {

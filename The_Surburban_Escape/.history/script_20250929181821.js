@@ -135,9 +135,9 @@ if (addUsageBtn && usageModal) {
         if (userRole === 'admin') {
           roomsSection.style.display = 'block';
           bookingsSection.style.display = 'block';
-          // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-          // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-          // inventorySection.style.display = 'block'; // Hidden complex admin sections
+          conferencesSection.style.display = 'block';
+          conferenceBookingsSection.style.display = 'block';
+          inventorySection.style.display = 'block';
           document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
           officeUsageSection.style.display = 'block';
         }
@@ -767,7 +767,7 @@ if (addUsageBtn && usageModal) {
   }
   
   // Update task status
-  window.updateTaskStatus = async function(taskId, status) {
+  async function updateTaskStatus(taskId, status) {
     try {
       await apiFetch(`/housekeeping-tasks/${taskId}`, {
         method: 'PUT',
@@ -778,7 +778,7 @@ if (addUsageBtn && usageModal) {
       console.error('Error updating task status:', err);
       alert('Failed to update task status');
     }
-  };
+  }
 
   // Assign housekeeping task
   window.assignHousekeeping = async function(roomId, staffId) {
@@ -922,23 +922,67 @@ if (addUsageBtn && usageModal) {
 
       card.innerHTML = `
         <h3>${item.name}</h3>
-        <p><strong>Category:</strong> ${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</p>
-        <p><strong>Total Stock:</strong> ${item.total_stock} ${item.unit}</p>
-        <p><strong>Current Stock:</strong> ${item.current_stock} ${item.unit}</p>
-        <p><strong>Min Level:</strong> ${item.min_level}</p>
-        <p><strong>Reorder Threshold:</strong> ${item.reorder_threshold}</p>
-        <p><strong>Price per Unit:</strong> $${item.price_per_unit}</p>
-        <p><strong>Status:</strong> ${item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑'} ${item.status}</p>
-        ${item.description ? `<p><strong>Description:</strong> ${item.description}</p>` : ''}
-        <p><strong>Stock Level:</strong> ${Math.round(stockPercentage)}%</p>
 
-        <div class="progress-bar">
-          <div class="${progressClass}" style="width: ${stockPercentage}%"></div>
+        <div class="card-info-grid">
+          <div class="info-item">
+            <span class="info-label">Category</span>
+            <span class="info-value card-category ${item.category}">${item.category === 'consumables' ? '🛒' : '🏢'} ${item.category}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Status</span>
+            <span class="info-value card-status ${item.status}">${item.status === 'active' ? '✅' : item.status === 'inactive' ? '⏸️' : '🛑'} ${item.status}</span>
+          </div>
         </div>
+
+        <div class="stock-info-section">
+          <div class="stock-header">
+            <span class="stock-title">Stock Level</span>
+            <span class="stock-percentage">${Math.round(stockPercentage)}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="${progressClass}" style="width: ${stockPercentage}%"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.85rem; color: #6b7280;">
+            <span>Current: ${item.current_stock} ${item.unit}</span>
+            <span>Capacity: ${item.total_stock} ${item.unit}</span>
+          </div>
+        </div>
+
+        <div class="card-info-grid">
+          <div class="info-item">
+            <span class="info-label">Min Level</span>
+            <span class="info-value">${item.min_level} ${item.unit}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Reorder At</span>
+            <span class="info-value">${item.reorder_threshold} ${item.unit}</span>
+          </div>
+        </div>
+
+        <div class="card-info-grid">
+          <div class="info-item">
+            <span class="info-label">Price/Unit</span>
+            <span class="info-value">$${item.price_per_unit.toFixed(2)}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Total Value</span>
+            <span class="info-value">$${totalValue.toFixed(2)}</span>
+          </div>
+        </div>
+
+        ${item.description ? `
+          <div class="card-section">
+            <span class="info-label">Description</span>
+            <p style="margin: 4px 0; color: #374151; font-size: 0.9rem; line-height: 1.4;">${item.description}</p>
+          </div>
+        ` : ''}
 
         <div class="card-actions">
           <button class="btn btn-use" onclick="useInventoryItem(${item.id}, '${item.name}', ${item.current_stock})">Use Item</button>
           <button class="btn btn-reorder" onclick="reorderItem('${item.name}', ${item.min_level * 2})">Reorder</button>
+          <button class="btn btn-view" onclick="viewItemDetails(${item.id})">View</button>
+          <button class="btn btn-edit" onclick="editInventory(${item.id}, '${item.name.replace(/'/g, "\\'")}', '${(item.description || '').replace(/'/g, "\\'")}', '${item.category}', ${item.total_stock}, ${item.current_stock}, ${item.min_level}, ${item.reorder_threshold}, '${item.unit.replace(/'/g, "\\'")}', ${item.price_per_unit}, '${item.status.replace(/'/g, "\\'")}')">Edit</button>
+          <button class="btn btn-delete" onclick="deleteInventory(${item.id})">Delete</button>
         </div>
       `;
 
@@ -1050,45 +1094,6 @@ if (addUsageBtn && usageModal) {
     }
   }
 
-  // Use inventory item function
-  window.useInventoryItem = async function(itemId, itemName, currentStock) {
-    const quantity = prompt(`How many units of ${itemName} would you like to use? (Current stock: ${currentStock})`);
-
-    if (quantity === null || quantity === '') return;
-
-    const useQuantity = parseInt(quantity);
-    if (isNaN(useQuantity) || useQuantity <= 0) {
-      alert('Please enter a valid positive number');
-      return;
-    }
-
-    if (useQuantity > currentStock) {
-      alert(`Cannot use ${useQuantity} units. Only ${currentStock} units available.`);
-      return;
-    }
-
-    if (confirm(`Use ${useQuantity} units of ${itemName}?`)) {
-      try {
-        // Create stock-out transaction
-        await apiFetch('/stock-transactions', {
-          method: 'POST',
-          body: JSON.stringify({
-            item_id: itemId,
-            type: 'out',
-            quantity: useQuantity,
-            reason: 'Item usage'
-          })
-        });
-
-        alert(`Successfully used ${useQuantity} units of ${itemName}`);
-        loadInventory();
-        loadAlerts();
-      } catch (err) {
-        alert('Error processing usage: ' + err.message);
-      }
-    }
-  };
-
   // Reorder item function
   window.reorderItem = async function(itemName, quantity) {
     if (confirm(`Create reorder request for ${itemName} (${quantity} units)?`)) {
@@ -1151,9 +1156,9 @@ if (addUsageBtn && usageModal) {
       if (userRole === 'admin') {
         roomsSection.style.display = 'block';
         bookingsSection.style.display = 'block';
-        // conferencesSection.style.display = 'block'; // Hidden complex admin sections
-        // conferenceBookingsSection.style.display = 'block'; // Hidden complex admin sections
-        // inventorySection.style.display = 'block'; // Hidden complex admin sections
+        conferencesSection.style.display = 'block';
+        conferenceBookingsSection.style.display = 'block';
+        inventorySection.style.display = 'block';
         document.querySelector('.card:nth-of-type(3)').style.display = 'block'; // Housekeeping panel
         officeUsageSection.style.display = 'block';
       } else if (userRole === 'staff') {

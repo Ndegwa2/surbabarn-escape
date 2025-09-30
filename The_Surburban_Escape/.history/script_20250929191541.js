@@ -767,7 +767,7 @@ if (addUsageBtn && usageModal) {
   }
   
   // Update task status
-  window.updateTaskStatus = async function(taskId, status) {
+  async function updateTaskStatus(taskId, status) {
     try {
       await apiFetch(`/housekeeping-tasks/${taskId}`, {
         method: 'PUT',
@@ -778,7 +778,7 @@ if (addUsageBtn && usageModal) {
       console.error('Error updating task status:', err);
       alert('Failed to update task status');
     }
-  };
+  }
 
   // Assign housekeeping task
   window.assignHousekeeping = async function(roomId, staffId) {
