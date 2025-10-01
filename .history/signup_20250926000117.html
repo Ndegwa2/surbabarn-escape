@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Suburban Escape – Sign Up</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+<header class="app-bar">
+  <div class="app-bar-left">
+    🏡 The Suburban Escape – Guest & Booking Management
+  </div>
+  <div id="userSection" class="app-bar-right" style="display: none;">
+    <span>👋 Welcome, <span id="userRole"></span>!</span>
+    <button id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+<!-- Sign Up Section -->
+<div id="signupSection" class="card">
+  <h3>📝 Staff Sign Up</h3>
+  <form id="signupForm">
+    <label>Username:
+      <input type="text" id="signupUsername" required>
+    </label>
+    <label>Password:
+      <input type="password" id="signupPassword" required>
+    </label>
+    <label>Confirm Password:
+      <input type="password" id="confirmPassword" required>
+    </label>
+    <label>Role:
+      <select id="signupRole" required>
+        <option value="staff">Staff</option>
+        <option value="admin">Admin</option>
+      </select>
+    </label>
+    <button type="submit">Sign Up</button>
+  </form>
+  <p id="signupError" style="color: red; display: none;"></p>
+  <p>Already have an account? <a href="index.html">Login here</a></p>
+</div>
+
+<script src="script.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const signupForm = document.getElementById('signupForm');
+    const signupError = document.getElementById('signupError');
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('signupUsername').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const role = document.getElementById('signupRole').value;
+
+      if (password !== confirmPassword) {
+        signupError.textContent = 'Passwords do not match';
+        signupError.style.display = 'block';
+        return;
+      }
+
+      try {
+        const response = await fetch('/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, role })
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          signupError.textContent = data.error || 'Sign up failed';
+          signupError.style.display = 'block';
+          return;
+        }
+
+        // Redirect to login page after successful signup
+        window.location.href = 'index.html';
+      } catch (err) {
+        console.error('Signup error:', err);
+        signupError.textContent = 'Network error';
+        signupError.style.display = 'block';
+      }
+    });
+  });
+</script>
+</body>
+</html>

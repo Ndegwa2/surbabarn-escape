@@ -1,0 +1,121 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  padding: 20px;
+  margin: 0;
+}
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 15px;
+}
+.gallery img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+h2, h3, h4 {
+  color: #2c3e50;
+}
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+button {
+  padding: 10px 15px;
+  background-color: #5c6bc0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 2px;
+}
+.btn-edit {
+  background-color: #42a5f5;
+}
+.btn-delete {
+  background-color: #ef5350;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+th {
+  background-color: #eee;
+}
+form.inline {
+  display: inline;
+}
+.app-bar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f1f5f9;
+  padding: 8px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  z-index: 1000;
+  margin-bottom: 20px;
+}
+
+.app-bar-left {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.app-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-bar-right span {
+  color: #2c3e50;
+}
+
+.app-bar-right button {
+  padding: 6px 12px;
+  font-size: 0.9em;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 10px;
+  }
+  input, button {
+    width: 100%;
+  }
+
+  .app-bar {
+    padding: 10px 15px;
+  }
+
+  .app-bar-left {
+    font-size: 1em;
+  }
+}

@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: 2px solid #c82333;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #c82333, #dc3545);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            border-color: #dc3545;
+        }
+
+        .date-shift {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .date-shift h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .shift-hours {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card.rooms-to-clean {
+            border-top: 5px solid #dc3545;
+        }
+        
+        .card.in-progress {
+            border-top: 5px solid #fd7e14;
+        }
+        
+        .card.completed {
+            border-top: 5px solid #28a745;
+        }
+
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 0;
+        }
+
+        .inventory-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .inventory-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .inventory-card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .inventory-card p {
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .stock-info {
+            margin: 15px 0;
+        }
+
+        .stock-level {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .stock-bar {
+            flex: 1;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .stock-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
+
+        .stock-fill.low {
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+        }
+
+        .stock-fill.medium {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+        }
+
+        .status.active {
+            background-color: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .card-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .card-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .tabs {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 80px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 15px;
+            gap: 0;
+        }
+
+        .tab-button {
+            padding: 16px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            color: #007bff;
+            background-color: #f8f9fa;
+            transform: translateY(-2px);
+        }
+
+        .tab-button.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+            background-color: #f0f8ff;
+        }
+
+        .tab-button.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+        }
+
+        .tab-button i {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+
+        .tab-button.active i {
+            opacity: 1;
+            color: #007bff;
+        }
+
+        .tab-group {
+            display: flex;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-right: 20px;
+        }
+
+        .tab-group:last-child {
+            margin-right: 0;
+        }
+
+        .tasks-group {
+            border: 2px solid #e3f2fd;
+            background-color: #f8fbff;
+        }
+
+        .supplies-group {
+            border: 2px solid #fff3e0;
+            background-color: #fffef7;
+        }
+
+        .tab-group .tab-button {
+            border-radius: 0;
+            border-right: 1px solid rgba(0, 123, 255, 0.1);
+        }
+
+        .tab-group .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-group .tab-button.active {
+            background-color: #007bff;
+            color: white;
+            border-bottom: 3px solid #0056b3;
+        }
+
+        .tab-group .tab-button.active i {
+            color: white;
+        }
+
+        .task-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .task-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .task-card.dirty::before {
+            background: #dc3545;
+        }
+
+        .task-card.in-progress::before {
+            background: #fd7e14;
+        }
+
+        .task-card.completed::before {
+            background: #28a745;
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .room-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .room-icon {
+            font-size: 1.8rem;
+            opacity: 0.7;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .status-badge.dirty {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .status-badge.in-progress {
+            background: #fff3e0;
+            color: #ef6c00;
+            border: 1px solid #ffcc80;
+        }
+
+        .status-badge.completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .task-details {
+            margin-bottom: 20px;
+        }
+
+        .task-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .detail-label {
+            color: #7f8c8d;
+        }
+
+        .detail-value {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-complete {
+            background: linear-gradient(135deg, #007bff, #00d4ff);
+            color: white;
+        }
+
+        .btn-issue {
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+        }
+
+        .btn-notes {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+
+        .progress-indicator {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #495057;
+            margin-top: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .collapsible {
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-top: 30px;
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            padding: 15px 20px;
+            background: #e9f0ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .collapsible-content {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .collapsible-content.active {
+            padding: 20px;
+            max-height: 1000px;
+        }
+
+        .other-rooms-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .room-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .room-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .room-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .room-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .room-card-number {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .room-card-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .room-card-status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .room-card-status-badge.dirty {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .room-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pick-task-btn {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pick-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        /* Supply Requests Enhanced Styles */
+        .supply-requests-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        .supply-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+
+        .view-toggles {
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-toggle {
+            padding: 8px 16px;
+            border: 2px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .view-toggle:hover {
+            background: #007bff;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .view-toggle.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .supply-content {
+            position: relative;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .enhanced-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .enhanced-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .enhanced-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            background: white;
+        }
+
+        .enhanced-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .enhanced-table tr:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+        }
+
+        .enhanced-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge-table {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status-badge-table.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge-table.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge-table.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .supply-cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .supply-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .supply-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .supply-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .supply-item-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .supply-quantity {
+            background: #007bff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .supply-card-body {
+            margin-bottom: 15px;
+        }
+
+        .supply-reason {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .supply-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .supply-date {
+            color: #6c757d;
+        }
+
+        .supply-status {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .supply-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .supply-status.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .supply-status.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .timeline-container {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #007bff;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid #007bff;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -32px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            background: #007bff;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px #007bff;
+        }
+
+        .timeline-date {
+            font-size: 0.9rem;
+            color: #007bff;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .timeline-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .timeline-info {
+            flex: 1;
+        }
+
+        .timeline-item-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .timeline-quantity {
+            background: #007bff;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .timeline-reason {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .timeline-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .timeline-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .timeline-status.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .timeline-status.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .room-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .room-info {
+            flex: 1;
+        }
+
+        .room-number {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .guest-status {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .priority-medium {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .status-toggle {
+            display: flex;
+            gap: 5px;
+        }
+
+        .status-btn {
+            padding: 5px 10px;
+            border: 2px solid;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .status-dirty {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            border-color: #c82333;
+            color: white;
+        }
+        
+        .status-dirty:hover {
+            background: linear-gradient(135deg, #c82333, #dc3545);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            border-color: #dc3545;
+        }
+        
+        .status-cleaning {
+            background: linear-gradient(135deg, #fd7e14, #e06d06);
+            border-color: #e06d06;
+            color: white;
+        }
+        
+        .status-cleaning:hover {
+            background: linear-gradient(135deg, #e06d06, #fd7e14);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(253, 126, 20, 0.3);
+            border-color: #fd7e14;
+        }
+        
+        .status-ready {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            border-color: #1e7e34;
+            color: white;
+        }
+        
+        .status-ready:hover {
+            background: linear-gradient(135deg, #1e7e34, #28a745);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+            border-color: #28a745;
+        }
+
+        .checklist-btn {
+            padding: 5px 10px;
+            background: linear-gradient(135deg, #007bff, #0069d9);
+            color: white;
+            border: 2px solid #0069d9;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .checklist-btn:hover {
+            background: linear-gradient(135deg, #0069d9, #007bff);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            border-color: #007bff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group select,
+        .form-group textarea,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .form-group select:focus,
+        .form-group textarea:focus,
+        .form-group input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #007bff, #0069d9);
+            color: white;
+            border: 2px solid #0069d9;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #0069d9, #007bff);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            border-color: #007bff;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: 2px solid #059669;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .submit-btn:hover {
+            background: linear-gradient(135deg, #059669, #10b981);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            border-color: #10b981;
+        }
+
+        .supply-btn {
+            padding: 15px;
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            border: 2px solid #5a6268;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+        
+        .supply-btn:hover {
+            background: linear-gradient(135deg, #5a6268, #6c757d);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+            border-color: #6c757d;
+        }
+
+        .clock-btn {
+            padding: 15px;
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white;
+            border: 2px solid #1e7e34;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .clock-btn:hover {
+            background: linear-gradient(135deg, #1e7e34, #28a745);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+            border-color: #28a745;
+        }
+        
+        .clock-btn.clock-out {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            border-color: #c82333;
+        }
+        
+        .clock-btn.clock-out:hover {
+            background: linear-gradient(135deg, #c82333, #dc3545);
+            border-color: #dc3545;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .shift-summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #007bff, #0069d9);
+            color: white;
+            border: 2px solid #0069d9;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .primary-btn:hover {
+            background: linear-gradient(135deg, #0069d9, #007bff);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            border-color: #007bff;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            animation: modalOpen 0.3s ease;
+        }
+        
+        @keyframes modalOpen {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .close {
+            float: right;
+            cursor: pointer;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            transition: color 0.2s ease;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+
+        .checklist-item input {
+            margin-right: 10px;
+        }
+
+        .checklist-item label {
+            flex: 1;
+        }
+
+        .checklist-item.completed {
+            background-color: #d4edda;
+        }
+
+        .checklist-item.completed label {
+            text-decoration: line-through;
+            color: #28a745;
+        }
+
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            border-top: 1px solid #eee;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #666;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        
+        .nav-item:hover {
+            color: #007bff;
+            background-color: #f8f9fa;
+        }
+        
+        .nav-item.active {
+            color: #007bff;
+            background-color: #e9f0ff;
+        }
+        
+        .nav-item i {
+            font-size: 20px;
+            margin-bottom: 3px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Staff Dashboard</h1>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="date-shift">
+        <h2 id="currentDate">Loading...</h2>
+        <div class="shift-hours">Shift: <span id="shiftStart">08:00 AM</span> - <span id="shiftEnd">04:00 PM</span></div>
+    </div>
+
+    <div class="summary-cards">
+        <div class="card rooms-to-clean">
+            <div class="card-number" id="roomsToClean">0</div>
+            <div class="card-label">Rooms to Clean</div>
+        </div>
+        <div class="card in-progress">
+            <div class="card-number" id="inProgress">0</div>
+            <div class="card-label">In Progress</div>
+        </div>
+        <div class="card completed">
+            <div class="card-number" id="completed">0</div>
+            <div class="card-label">Completed</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab-buttons">
+            <div class="tab-group tasks-group">
+                <button class="tab-button active" data-tab="my-tasks">
+                    <i>🛏️</i>
+                    <span>My Tasks</span>
+                </button>
+                <button class="tab-button" data-tab="report-issues">
+                    <i>🔧</i>
+                    <span>Report Issues</span>
+                </button>
+            </div>
+            <div class="tab-group supplies-group">
+                <button class="tab-button" data-tab="supplies">
+                    <i>📦</i>
+                    <span>Supplies</span>
+                </button>
+                <button class="tab-button" data-tab="shift-log">
+                    <i>⏱️</i>
+                    <span>Shift Log</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="my-tasks" class="tab-content active">
+            <h3>My Assigned Tasks</h3>
+            <div class="tasks-container">
+                <div class="task-cards" id="assignedTasksContainer">
+                    <!-- Task cards will be populated here -->
+                </div>
+                <div class="progress-indicator">
+                    <span id="tasksCompleted">0</span> / <span id="totalTasks">0</span> rooms cleaned today
+                </div>
+            </div>
+            
+            <div class="collapsible">
+                <div class="collapsible-header" id="otherRoomsHeader">
+                    <span>Other Dirty Rooms (Unassigned)</span>
+                    <span>▼</span>
+                </div>
+                <div class="collapsible-content" id="otherRoomsContent">
+                    <div class="other-rooms-container">
+                        <div class="room-cards" id="roomCardsContainer">
+                            <!-- Room cards will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="report-issues" class="tab-content">
+            <div class="form-card">
+                <form id="issueForm">
+                    <div class="form-group">
+                        <label for="issueRoom">Select Room</label>
+                        <select id="issueRoom" required>
+                            <option value="">Select a room</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="issueDescription">Problem Description</label>
+                        <textarea id="issueDescription" rows="4" placeholder="Describe the issue..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="issuePhoto">Upload Photo (optional)</label>
+                        <input type="file" id="issuePhoto" accept="image/*">
+                    </div>
+                    <button type="submit" class="submit-btn primary-btn">Send to Manager</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="supplies" class="tab-content">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="inventory-header" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #eee;">
+                    <h3 style="margin: 0; color: #333; font-size: 20px;">MANAGE THE STAFF DASHBOARD FOR NAVIGATION</h3>
+                </div>
+
+                <div class="inventory-grid">
+                <div class="inventory-card">
+                    <h2>Guest Soap Bars</h2>
+                    <p><strong>Category:</strong> Consumables</p>
+                    <p><strong>Total Stock:</strong> 300 bars</p>
+                    <p><strong>Current Stock:</strong> 250 bars</p>
+                    <p><strong>Min Level:</strong> 30</p>
+                    <p><strong>Reorder Threshold:</strong> 75</p>
+                    <p><strong>Price per Unit:</strong> $1</p>
+                    <p><strong>Status:</strong> <span class="status active">Active</span></p>
+
+                    <div class="stock-info">
+                        <span>Stock Level:</span>
+                        <div class="stock-level">
+                            <div class="stock-bar">
+                                <div class="stock-fill" style="width: 83%"></div>
+                            </div>
+                            <span>83%</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="primary-btn" onclick="updateStock('soap', -1)">Report Low Stock</button>
+                        <button class="primary-btn" onclick="reorderItem('soap')" style="background: #f59e0b;">Reorder</button>
+                    </div>
+                </div>
+
+                <div class="inventory-card">
+                    <h2>Guest Towels</h2>
+                    <p><strong>Category:</strong> Linens</p>
+                    <p><strong>Total Stock:</strong> 200 towels</p>
+                    <p><strong>Current Stock:</strong> 45 towels</p>
+                    <p><strong>Min Level:</strong> 20</p>
+                    <p><strong>Reorder Threshold:</strong> 50</p>
+                    <p><strong>Price per Unit:</strong> $3</p>
+                    <p><strong>Status:</strong> <span class="status active">Low Stock</span></p>
+
+                    <div class="stock-info">
+                        <span>Stock Level:</span>
+                        <div class="stock-level">
+                            <div class="stock-bar">
+                                <div class="stock-fill low" style="width: 23%"></div>
+                            </div>
+                            <span>23%</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="primary-btn" onclick="updateStock('towels', -1)">Report Low Stock</button>
+                        <button class="primary-btn" onclick="reorderItem('towels')" style="background: #f59e0b;">Reorder</button>
+                    </div>
+                </div>
+
+                <div class="inventory-card">
+                    <h2>Cleaning Supplies</h2>
+                    <p><strong>Category:</strong> Maintenance</p>
+                    <p><strong>Total Stock:</strong> 50 bottles</p>
+                    <p><strong>Current Stock:</strong> 125 bottles</p>
+                    <p><strong>Min Level:</strong> 15</p>
+                    <p><strong>Reorder Threshold:</strong> 25</p>
+                    <p><strong>Price per Unit:</strong> $5</p>
+                    <p><strong>Status:</strong> <span class="status active">Active</span></p>
+
+                    <div class="stock-info">
+                        <span>Stock Level:</span>
+                        <div class="stock-level">
+                            <div class="stock-bar">
+                                <div class="stock-fill" style="width: 100%"></div>
+                            </div>
+                            <span>100%</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="primary-btn" onclick="updateStock('cleaning', -1)">Report Low Stock</button>
+                        <button class="primary-btn" onclick="reorderItem('cleaning')" style="background: #f59e0b;">Reorder</button>
+                    </div>
+                </div>
+
+                <div class="inventory-card">
+                    <h2>Bed Linens</h2>
+                    <p><strong>Category:</strong> Linens</p>
+                    <p><strong>Total Stock:</strong> 150 sets</p>
+                    <p><strong>Current Stock:</strong> 78 sets</p>
+                    <p><strong>Min Level:</strong> 25</p>
+                    <p><strong>Reorder Threshold:</strong> 40</p>
+                    <p><strong>Price per Unit:</strong> $15</p>
+                    <p><strong>Status:</strong> <span class="status active">Active</span></p>
+
+                    <div class="stock-info">
+                        <span>Stock Level:</span>
+                        <div class="stock-level">
+                            <div class="stock-bar">
+                                <div class="stock-fill medium" style="width: 52%"></div>
+                            </div>
+                            <span>52%</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="primary-btn" onclick="updateStock('linens', -1)">Use Item</button>
+                        <button class="primary-btn" onclick="reorderItem('linens')" style="background: #f59e0b;">Reorder</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Request Supplies</h3>
+            <div class="form-card">
+                <form id="supplyForm">
+                    <div class="form-group">
+                        <label for="supplyItem">Select Item</label>
+                        <select id="supplyItem" required>
+                            <option value="">Select an item</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="supplyQuantity">Quantity</label>
+                        <input type="number" id="supplyQuantity" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="supplyReason">Reason</label>
+                        <textarea id="supplyReason" rows="3" placeholder="Why do you need these supplies?"></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Request Supplies</button>
+                </form>
+            </div>
+
+            <h3 style="margin-top: 20px;">Quick Requests</h3>
+            <button class="supply-btn" onclick="requestSupply('towels')">Request More Towels</button>
+            <button class="supply-btn" onclick="requestSupply('soap')">Request More Soap</button>
+            <button class="supply-btn" onclick="requestSupply('cleaning')">Request Cleaning Supplies</button>
+
+            <div class="supply-requests-container">
+                <div class="supply-summary">
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">🟡</span>
+                            <div class="stat-info">
+                                <span class="stat-number" id="pendingCount">0</span>
+                                <span class="stat-label">Pending</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">✅</span>
+                            <div class="stat-info">
+                                <span class="stat-number" id="approvedCount">0</span>
+                                <span class="stat-label">Approved</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">❌</span>
+                            <div class="stat-info">
+                                <span class="stat-number" id="rejectedCount">0</span>
+                                <span class="stat-label">Rejected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view-toggles">
+                        <button class="view-toggle active" data-view="table">📋 Table</button>
+                        <button class="view-toggle" data-view="cards">🎫 Cards</button>
+                        <button class="view-toggle" data-view="timeline">📅 Timeline</button>
+                    </div>
+                </div>
+
+                <div class="supply-content">
+                    <div id="tableView" class="view active">
+                        <table id="supplyRequestsTable" class="enhanced-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Supply requests will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="cardsView" class="view">
+                        <div class="supply-cards-container">
+                            <!-- Supply request cards will be populated here -->
+                        </div>
+                    </div>
+
+                    <div id="timelineView" class="view">
+                        <div class="timeline-container">
+                            <!-- Timeline items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="shift-log" class="tab-content">
+            <button class="clock-btn" id="clockInBtn">Clock In</button>
+            <button class="clock-btn clock-out" id="clockOutBtn">Clock Out</button>
+            <div class="shift-summary">
+                <h3>Today's Summary</h3>
+                <p>Rooms Cleaned: <span id="roomsCleaned">0</span></p>
+                <p>Issues Reported: <span id="issuesReported">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleaning Checklist Modal -->
+    <div class="modal" id="checklistModal">
+        <div class="modal-content">
+            <span class="close" id="closeChecklistModal">&times;</span>
+            <h2>Cleaning Checklist - Room <span id="checklistRoomNumber"></span></h2>
+            <div class="form-card">
+                <form id="checklistForm">
+                    <div class="checklist-item">
+                        <input type="checkbox" id="task1" name="task1">
+                        <label for="task1">Change bed linens</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="task2" name="task2">
+                        <label for="task2">Replace towels</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="task3" name="task3">
+                        <label for="task3">Refill toiletries</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="task4" name="task4">
+                        <label for="task4">Empty trash</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="task5" name="task5">
+                        <label for="task5">Vacuum/mop floor</label>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit & Mark as Ready</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="nav-bar">
+        <a href="#" class="nav-item active" data-tab="my-tasks">
+            <i>🛏️</i>
+            <span>Tasks</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="report-issues">
+            <i>🛠️</i>
+            <span>Issues</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="supplies">
+            <i>📦</i>
+            <span>Supplies</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="shift-log">
+            <i>⏱️</i>
+            <span>Shift</span>
+        </a>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <span class="close" id="closeMaintenanceModal">&times;</span>
+            <h2>Report Maintenance Issue</h2>
+            <div class="form-card">
+                <form id="maintenanceForm">
+                    <div class="form-group">
+                        <label for="maintenanceRoom">Room Number</label>
+                        <select id="maintenanceRoom" required>
+                            <option value="">Select a room</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenanceIssue">Issue Description</label>
+                        <textarea id="maintenanceIssue" rows="4" required></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit Report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div class="modal" id="inventoryModal">
+        <div class="modal-content">
+            <span class="close" id="closeInventoryModal">&times;</span>
+            <h2>Request Inventory</h2>
+            <div class="form-card">
+                <form id="inventoryForm">
+                    <div class="form-group">
+                        <label for="inventoryItem">Item</label>
+                        <select id="inventoryItem" required>
+                            <option value="">Select an item</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="inventoryQuantity">Quantity</label>
+                        <input type="number" id="inventoryQuantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inventoryReason">Reason</label>
+                        <textarea id="inventoryReason" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issue Modal -->
+    <div class="modal" id="issueModal">
+        <div class="modal-content">
+            <span class="close" id="closeIssueModal">&times;</span>
+            <h2>Report Lost/Damaged Item</h2>
+            <div class="form-card">
+                <form id="issueForm">
+                    <div class="form-group">
+                        <label for="issueItem">Item</label>
+                        <select id="issueItem" required>
+                            <option value="">Select an item</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="issueType">Type</label>
+                        <select id="issueType" required>
+                            <option value="lost">Lost</option>
+                            <option value="damaged">Damaged</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="issueQuantity">Quantity</label>
+                        <input type="number" id="issueQuantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="issueRoom">Room Number</label>
+                        <select id="issueRoom" required>
+                            <option value="">Select a room</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit Report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        let token = localStorage.getItem('token');
+        let userRole = localStorage.getItem('role');
+        let userId = localStorage.getItem('userId'); // We'll need to store user ID
+        let currentRoomId = null;
+
+        if (!token || userRole !== 'staff') {
+            window.location.href = '/';
+        }
+
+        // Helper to get auth headers
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        // Generic fetch helper
+        async function apiFetch(url, options = {}) {
+            const fullUrl = url.startsWith('http') ? url : `http://localhost:3000${url}`;
+            const response = await fetch(fullUrl, {
+                ...options,
+                headers: {
+                    ...getAuthHeaders(),
+                    ...options.headers
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('role');
+                    token = null;
+                    userRole = null;
+                    window.location.href = '/';
+                    throw new Error(`API error: ${response.status}`);
+                }
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // Logout function
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            window.location.href = '/';
+        });
+
+        // Tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and content
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Bottom navigation functionality
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Remove active class from all items
+                document.querySelectorAll('.nav-item').forEach(navItem => navItem.classList.remove('active'));
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked item
+                item.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = item.getAttribute('data-tab');
+                document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Close modal functionality
+        document.getElementById('closeChecklistModal').addEventListener('click', () => {
+            document.getElementById('checklistModal').style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('checklistModal')) {
+                document.getElementById('checklistModal').style.display = 'none';
+            }
+        });
+
+        // Show cleaning checklist modal
+        function showChecklist(roomId, roomNumber) {
+            currentRoomId = roomId;
+            document.getElementById('checklistRoomNumber').textContent = roomNumber;
+            document.getElementById('checklistModal').style.display = 'flex';
+            
+            // Reset form
+            document.getElementById('checklistForm').reset();
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                item.classList.remove('completed');
+            });
+        }
+
+        // Update date display
+        function updateDateDisplay() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // Load housekeeping tasks for My Tasks tab
+        async function loadHousekeepingTasks() {
+            try {
+                const tasks = await apiFetch('/housekeeping-tasks');
+                
+                // Filter tasks assigned to current user
+                const myTasks = tasks.filter(task => task.maid_id == userId);
+                
+                // Update summary cards
+                document.getElementById('roomsToClean').textContent = myTasks.length;
+                
+                // For now, we'll set these to 0, but in a real app these would be tracked
+                document.getElementById('inProgress').textContent = '0';
+                document.getElementById('completed').textContent = '0';
+                
+                // Populate task cards
+                 const tasksContainer = document.getElementById('assignedTasksContainer');
+                 tasksContainer.innerHTML = '';
+
+                 // Update progress indicator
+                 document.getElementById('totalTasks').textContent = myTasks.length;
+                 const completedTasks = myTasks.filter(task => task.status === 'completed').length;
+                 document.getElementById('tasksCompleted').textContent = completedTasks;
+
+                 myTasks.forEach(task => {
+                     const taskCard = document.createElement('div');
+                     taskCard.className = `task-card ${task.status}`;
+
+                     const statusText = task.status === 'assigned' ? 'Dirty' :
+                                      task.status === 'in_progress' ? 'In Progress' : 'Completed';
+
+                     const statusBadgeClass = task.status === 'assigned' ? 'dirty' :
+                                            task.status === 'in_progress' ? 'in-progress' : 'completed';
+
+                     taskCard.innerHTML = `
+                         <div class="room-header">
+                             <h3 class="room-number">${task.room_name}</h3>
+                             <span class="room-icon">🛏️</span>
+                         </div>
+
+                         <div class="status-badge ${statusBadgeClass}">
+                             ${statusText}
+                         </div>
+
+                         <div class="task-details">
+                             <div class="task-detail">
+                                 <span class="detail-label">Assigned Date:</span>
+                                 <span class="detail-value">${new Date(task.assigned_date).toLocaleDateString()}</span>
+                             </div>
+                             <div class="task-detail">
+                                 <span class="detail-label">Notes:</span>
+                                 <span class="detail-value">${task.notes || 'No notes'}</span>
+                             </div>
+                         </div>
+
+                         <div class="task-actions">
+                             ${task.status === 'assigned' ? `
+                                 <button class="action-btn btn-start" onclick="updateTaskStatus(${task.id}, 'in_progress')">
+                                     <span>▶️</span> Start
+                                 </button>
+                                 <button class="action-btn btn-issue" onclick="reportIssueForRoom('${task.room_name}')">
+                                     <span>🔧</span> Report Issue
+                                 </button>
+                             ` : task.status === 'in_progress' ? `
+                                 <button class="action-btn btn-complete" onclick="updateTaskStatus(${task.id}, 'completed')">
+                                     <span>✅</span> Mark Done
+                                 </button>
+                                 <button class="action-btn btn-notes" onclick="addNotesForTask(${task.id})">
+                                     <span>📝</span> Add Notes
+                                 </button>
+                             ` : `
+                                 <button class="action-btn btn-complete" disabled>
+                                     <span>✅</span> Completed
+                                 </button>
+                             `}
+                         </div>
+                     `;
+
+                     tasksContainer.appendChild(taskCard);
+                 });
+                
+                // Load other dirty rooms (not assigned to anyone)
+                loadDirtyRooms();
+            } catch (err) {
+                console.error('Error loading housekeeping tasks:', err);
+                alert('Failed to load tasks. Please refresh.');
+            }
+        }
+        
+        // Load dirty rooms for My Tasks tab
+        async function loadDirtyRooms() {
+            try {
+                const rooms = await apiFetch('/rooms');
+                
+                // Filter rooms that need cleaning (dirty rooms) and are not assigned to any maid
+                const dirtyRooms = rooms.filter(room => room.housekeeping_state === 'dirty');
+                
+                // Populate room cards
+                 const roomCardsContainer = document.getElementById('roomCardsContainer');
+                 roomCardsContainer.innerHTML = '';
+
+                 dirtyRooms.forEach(room => {
+                     const roomCard = document.createElement('div');
+                     roomCard.className = 'room-card';
+
+                     roomCard.innerHTML = `
+                         <div class="room-card-header">
+                             <h4 class="room-card-number">${room.name}</h4>
+                             <span class="priority-badge priority-high">High</span>
+                         </div>
+
+                         <div class="room-card-status">
+                             <span class="room-icon">🚪</span>
+                             <span class="room-card-status-badge dirty">Dirty</span>
+                         </div>
+
+                         <div class="room-card-actions">
+                             <button class="pick-task-btn" onclick="pickTask(${room.id}, '${room.name}')">
+                                 Pick Task
+                             </button>
+                             <button class="pick-task-btn" onclick="showChecklist(${room.id}, '${room.name}')" style="background: #6c757d;">
+                                 Checklist
+                             </button>
+                         </div>
+                     `;
+
+                     roomCardsContainer.appendChild(roomCard);
+                 });
+                
+                // Populate room dropdown for issues form
+                const issueRoomSelect = document.getElementById('issueRoom');
+                issueRoomSelect.innerHTML = '<option value="">Select a room</option>';
+                rooms.forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.textContent = room.name;
+                    issueRoomSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Error loading dirty rooms:', err);
+                alert('Failed to load rooms. Please refresh.');
+            }
+        }
+
+        // Update room status
+        async function updateRoomStatus(roomId, status) {
+            try {
+                await apiFetch(`/rooms/${roomId}/housekeeping`, {
+                    method: 'POST',
+                    body: JSON.stringify({ housekeeping_state: status })
+                });
+                
+                // Reload rooms to update the display
+                loadRooms();
+                
+                // Update summary cards based on status
+                const roomsToCleanEl = document.getElementById('roomsToClean');
+                const inProgressEl = document.getElementById('inProgress');
+                const completedEl = document.getElementById('completed');
+                
+                if (status === 'dirty') {
+                    roomsToCleanEl.textContent = parseInt(roomsToCleanEl.textContent) + 1;
+                } else if (status === 'cleaning') {
+                    inProgressEl.textContent = parseInt(inProgressEl.textContent) + 1;
+                } else if (status === 'clean') {
+                    completedEl.textContent = parseInt(completedEl.textContent) + 1;
+                }
+            } catch (err) {
+                console.error('Error updating room status:', err);
+                alert('Failed to update room status.');
+            }
+        }
+
+        // Submit cleaning checklist
+        document.getElementById('checklistForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!currentRoomId) {
+                alert('No room selected');
+                return;
+            }
+            
+            try {
+                // Update room status to clean
+                await apiFetch(`/rooms/${currentRoomId}/housekeeping`, {
+                    method: 'POST',
+                    body: JSON.stringify({ housekeeping_state: 'clean' })
+                });
+                
+                // Close modal
+                document.getElementById('checklistModal').style.display = 'none';
+                
+                // Reload rooms to update the display
+                loadRooms();
+                
+                // Update summary cards
+                const roomsToCleanEl = document.getElementById('roomsToClean');
+                const completedEl = document.getElementById('completed');
+                roomsToCleanEl.textContent = parseInt(roomsToCleanEl.textContent) - 1;
+                completedEl.textContent = parseInt(completedEl.textContent) + 1;
+                
+                alert('Room marked as ready!');
+            } catch (err) {
+                console.error('Error submitting checklist:', err);
+                alert('Failed to submit checklist.');
+            }
+        });
+
+        // Report issue form submission
+        document.getElementById('issueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const roomId = document.getElementById('issueRoom').value;
+            const description = document.getElementById('issueDescription').value;
+            
+            if (!roomId || !description) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            try {
+                // In a real app, you would send this to the server
+                // For now, we'll just show a success message
+                alert('Issue reported to manager successfully!');
+                document.getElementById('issueForm').reset();
+                
+                // Update issues reported count
+                const issuesReportedEl = document.getElementById('issuesReported');
+                issuesReportedEl.textContent = parseInt(issuesReportedEl.textContent) + 1;
+            } catch (err) {
+                console.error('Error reporting issue:', err);
+                alert('Failed to report issue.');
+            }
+        });
+
+        // Request supply
+        async function requestSupply(supplyType) {
+            let item = '';
+            let reason = '';
+            
+            switch(supplyType) {
+                case 'towels':
+                    item = 'Towels';
+                    reason = 'Need more towels for guest rooms';
+                    break;
+                case 'soap':
+                    item = 'Soap Bars';
+                    reason = 'Need more soap for guest rooms';
+                    break;
+                case 'cleaning':
+                    item = 'Cleaning Supplies';
+                    reason = 'Need cleaning supplies for housekeeping';
+                    break;
+                default:
+                    item = supplyType;
+                    reason = 'General supply request';
+            }
+            
+            try {
+                const response = await apiFetch('/supply-requests', {
+                    method: 'POST',
+                    body: JSON.stringify({ item_name: item, quantity: 1, reason })
+                });
+                
+                alert(`Request for ${item} sent to manager.`);
+                loadSupplyRequests(); // Refresh the supply requests table
+            } catch (err) {
+                console.error('Error requesting supply:', err);
+                alert('Failed to request supplies.');
+            }
+        }
+        
+        // Load supply items for dropdown
+        async function loadSupplyItems() {
+            try {
+                // In a real implementation, this would fetch from the server
+                // For now, we'll populate with sample items
+                const supplyItems = [
+                    'Towels',
+                    'Soap Bars',
+                    'Toilet Paper',
+                    'Bed Linens',
+                    'Cleaning Supplies',
+                    'Trash Bags',
+                    'Room Freshener'
+                ];
+                
+                const supplyItemSelect = document.getElementById('supplyItem');
+                supplyItemSelect.innerHTML = '<option value="">Select an item</option>';
+                
+                supplyItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    supplyItemSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Error loading supply items:', err);
+            }
+        }
+        
+        // Submit supply request form
+        document.getElementById('supplyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const item = document.getElementById('supplyItem').value;
+            const quantity = document.getElementById('supplyQuantity').value;
+            const reason = document.getElementById('supplyReason').value;
+            
+            if (!item || !quantity) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            try {
+                const response = await apiFetch('/supply-requests', {
+                    method: 'POST',
+                    body: JSON.stringify({ item_name: item, quantity: parseInt(quantity), reason })
+                });
+                
+                alert(`Request for ${quantity} ${item} sent to manager.`);
+                document.getElementById('supplyForm').reset();
+                loadSupplyRequests(); // Refresh the supply requests table
+            } catch (err) {
+                console.error('Error submitting supply request:', err);
+                alert('Failed to submit supply request.');
+            }
+        });
+        
+        // Format date to friendly format (Sep 30, 2025 • 1:44 AM)
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            const day = date.getDate();
+            const year = date.getFullYear();
+            const time = date.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            return `${month} ${day}, ${year} • ${time}`;
+        }
+
+        // Load supply requests for all views
+        async function loadSupplyRequests() {
+            try {
+                const requests = await apiFetch('/supply-requests');
+
+                // Update summary stats
+                const pendingCount = requests.filter(r => r.status === 'pending').length;
+                const approvedCount = requests.filter(r => r.status === 'approved').length;
+                const rejectedCount = requests.filter(r => r.status === 'rejected').length;
+
+                document.getElementById('pendingCount').textContent = pendingCount;
+                document.getElementById('approvedCount').textContent = approvedCount;
+                document.getElementById('rejectedCount').textContent = rejectedCount;
+
+                // Load table view
+                loadTableView(requests);
+
+                // Load cards view
+                loadCardsView(requests);
+
+                // Load timeline view
+                loadTimelineView(requests);
+
+            } catch (err) {
+                console.error('Error loading supply requests:', err);
+            }
+        }
+
+        // Load table view
+        function loadTableView(requests) {
+            const tableBody = document.querySelector('#supplyRequestsTable tbody');
+            tableBody.innerHTML = '';
+
+            requests.forEach(request => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = request.item_name;
+                row.insertCell(1).textContent = request.quantity;
+
+                const reasonCell = row.insertCell(2);
+                reasonCell.textContent = request.reason || 'No reason provided';
+                reasonCell.title = request.reason || 'No reason provided';
+
+                const statusCell = row.insertCell(3);
+                const statusBadge = document.createElement('span');
+                statusBadge.className = `status-badge-table ${request.status}`;
+                statusBadge.textContent = request.status === 'pending' ? '🟡 Pending' :
+                                         request.status === 'approved' ? '✅ Approved' : '❌ Rejected';
+                statusCell.appendChild(statusBadge);
+
+                row.insertCell(4).textContent = formatDate(request.request_date);
+            });
+        }
+
+        // Load cards view
+        function loadCardsView(requests) {
+            const cardsContainer = document.querySelector('.supply-cards-container');
+            cardsContainer.innerHTML = '';
+
+            requests.forEach(request => {
+                const card = document.createElement('div');
+                card.className = 'supply-card';
+
+                const statusClass = request.status;
+                const statusText = request.status === 'pending' ? '🟡 Pending' :
+                                  request.status === 'approved' ? '✅ Approved' : '❌ Rejected';
+
+                card.innerHTML = `
+                    <div class="supply-card-header">
+                        <h4 class="supply-item-name">${request.item_name}</h4>
+                        <span class="supply-quantity">x${request.quantity}</span>
+                    </div>
+
+                    <div class="supply-card-body">
+                        <div class="supply-reason">${request.reason || 'No reason provided'}</div>
+                    </div>
+
+                    <div class="supply-meta">
+                        <span class="supply-date">📅 ${formatDate(request.request_date)}</span>
+                        <span class="supply-status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        // Load timeline view
+        function loadTimelineView(requests) {
+            const timelineContainer = document.querySelector('.timeline-container');
+            timelineContainer.innerHTML = '';
+
+            // Sort requests by date (newest first)
+            const sortedRequests = requests.sort((a, b) =>
+                new Date(b.request_date) - new Date(a.request_date)
+            );
+
+            sortedRequests.forEach(request => {
+                const timelineItem = document.createElement('div');
+                timelineItem.className = 'timeline-item';
+
+                const statusClass = request.status;
+                const statusText = request.status === 'pending' ? '🟡 Pending' :
+                                  request.status === 'approved' ? '✅ Approved' : '❌ Rejected';
+
+                timelineItem.innerHTML = `
+                    <div class="timeline-date">${formatDate(request.request_date)}</div>
+                    <div class="timeline-content">
+                        <div class="timeline-info">
+                            <div class="timeline-item-name">${request.item_name}</div>
+                            <span class="timeline-quantity">(x${request.quantity})</span>
+                            <div class="timeline-reason">${request.reason || 'No reason provided'}</div>
+                        </div>
+                        <div class="timeline-status ${statusClass}">${statusText}</div>
+                    </div>
+                `;
+
+                timelineContainer.appendChild(timelineItem);
+            });
+        }
+
+        // View toggle functionality
+        document.querySelectorAll('.view-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                // Remove active class from all toggles and views
+                document.querySelectorAll('.view-toggle').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+                // Add active class to clicked toggle
+                toggle.classList.add('active');
+
+                // Show corresponding view
+                const viewId = toggle.getAttribute('data-view');
+                document.getElementById(viewId + 'View').classList.add('active');
+            });
+        });
+        
+        // Show notification
+        function showNotification(message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = '#007bff';
+            notification.style.color = 'white';
+            notification.style.padding = '15px';
+            notification.style.borderRadius = '5px';
+            notification.style.zIndex = '9999';
+            notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            
+            // Add to document
+            document.body.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // Poll for updates (simulating real-time notifications)
+        function startRealTimeUpdates() {
+            setInterval(async () => {
+                try {
+                    // Check for new tasks
+                    const tasks = await apiFetch('/housekeeping-tasks');
+                    const myTasks = tasks.filter(task => task.maid_id == userId);
+                    
+                    // Check if there are new assigned tasks
+                    const assignedTasks = myTasks.filter(task => task.status === 'assigned');
+                    if (assignedTasks.length > 0) {
+                        showNotification(`You have ${assignedTasks.length} new cleaning task(s)!`);
+                    }
+                } catch (err) {
+                    console.error('Error checking for updates:', err);
+                }
+            }, 30000); // Check every 30 seconds
+        }
+        
+        // Update housekeeping task status
+         async function updateTaskStatus(taskId, status) {
+             try {
+                 await apiFetch(`/housekeeping-tasks/${taskId}`, {
+                     method: 'PUT',
+                     body: JSON.stringify({ status })
+                 });
+
+                 alert('Task status updated successfully!');
+                 loadHousekeepingTasks(); // Refresh the tasks
+             } catch (err) {
+                 console.error('Error updating task status:', err);
+                 alert('Failed to update task status.');
+             }
+         }
+
+         // Pick a task from unassigned rooms
+         async function pickTask(roomId, roomName) {
+             try {
+                 // Create a new housekeeping task for the current user
+                 await apiFetch('/housekeeping-tasks', {
+                     method: 'POST',
+                     body: JSON.stringify({
+                         room_id: roomId,
+                         room_name: roomName,
+                         maid_id: userId,
+                         status: 'assigned',
+                         assigned_date: new Date().toISOString()
+                     })
+                 });
+
+                 alert(`Task for ${roomName} picked successfully!`);
+                 loadHousekeepingTasks(); // Refresh both assigned tasks and available rooms
+             } catch (err) {
+                 console.error('Error picking task:', err);
+                 alert('Failed to pick task.');
+             }
+         }
+
+         // Report issue for a specific room
+         function reportIssueForRoom(roomName) {
+             // Find the room in the dropdown and select it
+             const issueRoomSelect = document.getElementById('issueRoom');
+             issueRoomSelect.value = roomName;
+
+             // Switch to the issues tab
+             document.querySelector('.tab-button[data-tab="report-issues"]').click();
+
+             // Focus on the description field
+             setTimeout(() => {
+                 document.getElementById('issueDescription').focus();
+             }, 100);
+         }
+
+         // Add notes for a task
+         function addNotesForTask(taskId) {
+             // In a real implementation, this would open a modal or form to add notes
+             const notes = prompt('Add notes for this task:');
+             if (notes) {
+                 // Here you would typically send the notes to the server
+                 alert('Notes added successfully!');
+             }
+         }
+
+         // Collapsible functionality
+         document.getElementById('otherRoomsHeader').addEventListener('click', () => {
+             const content = document.getElementById('otherRoomsContent');
+             const header = document.getElementById('otherRoomsHeader');
+
+             if (content.classList.contains('active')) {
+                 content.classList.remove('active');
+                 header.querySelector('span:last-child').textContent = '▶';
+             } else {
+                 content.classList.add('active');
+                 header.querySelector('span:last-child').textContent = '▼';
+             }
+         });
+
+        // Clock in/out functionality
+        document.getElementById('clockInBtn').addEventListener('click', () => {
+            alert('Clocked in successfully!');
+            // In a real app, you would send this to the server
+        });
+
+        document.getElementById('clockOutBtn').addEventListener('click', () => {
+            alert('Clocked out successfully!');
+            // In a real app, you would send this to the server
+        });
+
+        // Initialize checklist items
+        function initChecklistItems() {
+            const checklistItems = document.querySelectorAll('.checklist-item input');
+            checklistItems.forEach(item => {
+                item.addEventListener('change', function() {
+                    const parent = this.parentElement;
+                    if (this.checked) {
+                        parent.classList.add('completed');
+                    } else {
+                        parent.classList.remove('completed');
+                    }
+                });
+            });
+        }
+
+        // Report item status function (Mark as Done/Need Restocking)
+        async function updateStock(itemType, status) {
+            let itemName = '';
+            let reason = '';
+
+            // Map item types to names
+            switch(itemType) {
+                case 'soap':
+                    itemName = 'Guest Soap Bars';
+                    break;
+                case 'towels':
+                    itemName = 'Guest Towels';
+                    break;
+                case 'cleaning':
+                    itemName = 'Cleaning Supplies';
+                    break;
+                case 'linens':
+                    itemName = 'Bed Linens';
+                    break;
+                default:
+                    alert('Unknown item type');
+                    return;
+            }
+
+            if (status === -1) {
+                // Mark as needs restocking
+                reason = `Item running low - needs restocking`;
+                if (confirm(`Report that ${itemName} needs restocking?`)) {
+                    try {
+                        // Create a supply request instead of consuming stock
+                        await apiFetch('/supply-requests', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                item_name: itemName,
+                                quantity: 1, // Default quantity, can be adjusted
+                                reason: reason,
+                                status: 'pending'
+                            })
+                        });
+
+                        alert(`Restocking request for ${itemName} has been submitted to management.`);
+                        loadSupplyRequests(); // Refresh supply requests
+                    } catch (err) {
+                        alert('Error submitting restocking request: ' + err.message);
+                    }
+                }
+            } else {
+                // Mark as done/completed (could be used for other purposes)
+                alert(`${itemName} marked as completed.`);
+            }
+        }
+
+        // Reorder item function
+        async function reorderItem(itemName) {
+            let quantity = 0;
+            let itemId = 0;
+
+            // Map item names to reorder quantities and IDs
+            switch(itemName) {
+                case 'soap':
+                    quantity = 100; // Reorder 100 soap bars
+                    itemId = 1;
+                    break;
+                case 'towels':
+                    quantity = 50; // Reorder 50 towels
+                    itemId = 2;
+                    break;
+                case 'cleaning':
+                    quantity = 20; // Reorder 20 cleaning supplies
+                    itemId = 3;
+                    break;
+                case 'linens':
+                    quantity = 25; // Reorder 25 sets of linens
+                    itemId = 4;
+                    break;
+                default:
+                    alert('Unknown item');
+                    return;
+            }
+
+            if (confirm(`Create reorder request for ${itemName} (${quantity} units)?`)) {
+                try {
+                    // Create stock-in transaction
+                    await apiFetch('/stock-transactions', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            item_id: itemId,
+                            type: 'in',
+                            quantity: quantity,
+                            reason: 'Reorder - Low stock alert from staff dashboard'
+                        })
+                    });
+
+                    alert(`Reorder processed! ${quantity} units added to ${itemName}`);
+                } catch (err) {
+                    alert('Error processing reorder: ' + err.message);
+                }
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDateDisplay();
+            loadHousekeepingTasks(); // This will also load dirty rooms
+            loadSupplyItems();
+            loadSupplyRequests();
+            initChecklistItems();
+
+            // Start real-time updates
+            startRealTimeUpdates();
+
+            // Set up checklist items
+            const checklistItems = document.querySelectorAll('.checklist-item input');
+            checklistItems.forEach(item => {
+                item.addEventListener('change', function() {
+                    const parent = this.parentElement;
+                    if (this.checked) {
+                        parent.classList.add('completed');
+                    } else {
+                        parent.classList.remove('completed');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

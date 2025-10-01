@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Suburban Escape – Guest & Booking Management</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+<header class="app-bar">
+  <div class="app-bar-left">
+    🏡 The Suburban Escape – Guest & Booking Management
+  </div>
+  <div id="userSection" class="app-bar-right" style="display: none;">
+    <span>👋 Welcome, <span id="userRole"></span>!</span>
+    <button id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+<!-- Login Section -->
+  <div id="loginSection" class="card">
+    <h3>🔐 Staff Login</h3>
+    <form id="loginForm">
+      <label>Username:
+        <input type="text" id="username" required>
+      </label>
+      <label>Password:
+        <input type="password" id="password" required>
+      </label>
+      <button type="submit">Login</button>
+    </form>
+    <p id="loginError" style="color: red; display: none;"></p>
+  </div>
+
+  <!-- Dashboard - Hidden until login -->
+  <div id="dashboard" style="display: none;">
+    <!-- Guests Section -->
+    <div class="card">
+      <h3>👥 Guests & Check-in</h3>
+      <form id="checkinForm">
+        <label>Full Name: <input type="text" id="name" required></label>
+        <label>Phone: <input type="text" id="phone" required></label>
+        <label>Email: <input type="email" id="email"></label>
+        <label>ID/Passport: <input type="text" id="idNumber"></label>
+        <label>Room Name: <input type="text" id="roomName" required></label>
+        <label>Check-in Date: <input type="date" id="checkInDate" required></label>
+        <label>Check-out Date: <input type="date" id="checkOutDate" required></label>
+        <button type="submit">Check In</button>
+      </form>
+      <table id="guestTable">
+        <thead>
+          <tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>Room</th><th>Check-in</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Rooms Management (Admin only) -->
+    <div id="roomsSection" class="card" style="display: none;">
+<div class="filters">
+  <input type="text" id="roomSearch" placeholder="Search by type or name...">
+  <select id="statusFilter">
+    <option value="">All Statuses</option>
+    <option value="available">Available</option>
+    <option value="occupied">Occupied</option>
+    <option value="dirty">Dirty</option>
+    <option value="maintenance">Maintenance</option>
+  </select>
+  <button onclick="applyFilters()">Apply Filters</button>
+</div>
+      <h3>🛏️ Room Management</h3>
+      <form id="addRoomForm">
+        <label>Name: <input type="text" id="roomNameAdd" required></label>
+        <label>Type: <input type="text" id="roomType" required></label>
+        <label>Base Rate: <input type="number" id="baseRate" step="0.01" required></label>
+        <label>Status: <select id="roomStatus"><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option></select></label>
+        <button type="submit">Add Room</button>
+      </form>
+      <!-- Rooms Kanban Board -->
+      <div id="roomsKanban">
+        <div class="kanban-column" data-status="available">
+          <h4>🟢 Available</h4>
+          <div class="kanban-items" id="availableRooms"></div>
+        </div>
+        <div class="kanban-column" data-status="occupied">
+          <h4>🟦 Occupied</h4>
+          <div class="kanban-items" id="occupiedRooms"></div>
+        </div>
+        <div class="kanban-column" data-status="dirty">
+          <h4>🟡 Dirty</h4>
+          <div class="kanban-items" id="dirtyRooms"></div>
+        </div>
+        <div class="kanban-column" data-status="maintenance">
+          <h4>🔧 Maintenance</h4>
+          <div class="kanban-items" id="maintenanceRooms"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Housekeeping Panel -->
+    <div class="card">
+      <h3>🧹 Housekeeping Panel</h3>
+      <p>List of rooms pending cleaning. Assign staff here.</p>
+      <table id="housekeepingTable">
+        <thead>
+          <tr><th>Room Name</th><th>Housekeeping State</th><th>Assign Staff</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Bookings Section (Admin only) -->
+    <div id="bookingsSection" class="card" style="display: none;">
+      <h3>📅 Bookings</h3>
+      <form id="addBookingForm">
+        <label>Guest ID: <input type="number" id="guestId" required></label>
+        <label>Room ID: <input type="number" id="roomId" required></label>
+        <label>Check-in Date: <input type="date" id="bookingCheckIn" required></label>
+        <label>Check-out Date: <input type="date" id="bookingCheckOut" required></label>
+        <label>Status: <select id="bookingStatus"><option value="reserved">Reserved</option><option value="checked_in">Checked In</option><option value="checked_out">Checked Out</option><option value="cancelled">Cancelled</option><option value="no_show">No Show</option></select></label>
+        <button type="submit">Create Booking</button>
+      </form>
+      <table id="bookingTable">
+        <thead>
+          <tr><th>ID</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th><th>Total</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  
+    <!-- Conference Facilities Management (Admin only) -->
+    <div id="conferencesSection" class="card" style="display: none;">
+      <h3>🏢 Conference Facilities</h3>
+      <form id="addConferenceForm">
+        <label>Name: <input type="text" id="confName" required></label>
+        <label>Capacity: <input type="number" id="confCapacity" value="50" required></label>
+        <label>Equipment: <input type="text" id="confEquipment" placeholder="projector, microphone, speaker"></label>
+        <label>Hourly Rate: <input type="number" id="confHourly" step="0.01" value="50" required></label>
+        <label>Daily Rate: <input type="number" id="confDaily" step="0.01" value="300" required></label>
+        <label>Status: <select id="confStatus">
+          <option value="available">Available</option>
+          <option value="maintenance">Maintenance</option>
+        </select></label>
+        <button type="submit">Add Facility</button>
+      </form>
+      <table id="confTable">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Capacity</th><th>Equipment</th><th>Hourly</th><th>Daily</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  
+    <!-- Conference Bookings (Admin only) -->
+    <div id="conferenceBookingsSection" class="card" style="display: none;">
+      <h3>🎤 Conference Bookings</h3>
+      <form id="addConferenceBookingForm">
+        <label>Facility ID: <input type="number" id="confFacilityId" required></label>
+        <label>Event Name: <input type="text" id="confEventName" required></label>
+        <label>Date: <input type="date" id="confDate" required></label>
+        <label>Start Time: <input type="time" id="confStartTime" required></label>
+        <label>End Time: <input type="time" id="confEndTime" required></label>
+        <label>Attendees: <input type="number" id="confAttendees" min="1" required></label>
+        <label>Deposit: <input type="number" id="confDeposit" step="0.01" value="0"></label>
+        <label>Status: <select id="confBookingStatus">
+          <option value="reserved">Reserved</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select></label>
+        <button type="submit">Create Booking</button>
+      </form>
+      <table id="conferenceBookingTable">
+        <thead>
+          <tr><th>ID</th><th>Facility</th><th>Event</th><th>Date</th><th>Start</th><th>End</th><th>Attendees</th><th>Status</th><th>Deposit</th><th>Total</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Inventory Management Section (Admin only) -->
+    <div id="inventorySection" class="card" style="display: none;">
+      <h3>📦 Inventory Management</h3>
+      
+      <!-- Add New Inventory Item Form -->
+      <form id="addInventoryForm">
+        <label>Name: <input type="text" id="itemName" required></label>
+        <label>Description: <input type="text" id="itemDescription"></label>
+        <label>Category:
+          <select id="itemCategory">
+            <option value="consumables">Consumables</option>
+            <option value="fixed_assets">Fixed Assets</option>
+          </select>
+        </label>
+        <label>Total Stock: <input type="number" id="totalStock" min="0" required></label>
+        <label>Current Stock: <input type="number" id="currentStock" min="0" required></label>
+        <label>Min Level: <input type="number" id="minLevel" min="0" required></label>
+        <label>Reorder Threshold: <input type="number" id="reorderThreshold" min="0" required></label>
+        <label>Unit: <input type="text" id="itemUnit" value="unit"></label>
+        <label>Price per Unit: <input type="number" id="pricePerUnit" step="0.01" min="0"></label>
+        <label>Status:
+          <select id="itemStatus">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="discontinued">Discontinued</option>
+          </select>
+        </label>
+        <button type="submit">Add Item</button>
+      </form>
+
+      <!-- Inventory Items Table -->
+      <table id="inventoryTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Total Stock</th>
+            <th>Current Stock</th>
+            <th>Min Level</th>
+            <th>Reorder Threshold</th>
+            <th>Unit</th>
+            <th>Price/Unit</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Stock Transaction Form -->
+      <h4>Stock Transactions</h4>
+      <form id="stockTransactionForm">
+        <label>Item:
+          <select id="transactionItemId" required>
+            <option value="">Select Item</option>
+          </select>
+        </label>
+        <label>Type:
+          <select id="transactionType" required>
+            <option value="in">In (Restock)</option>
+            <option value="out">Out (Use)</option>
+            <option value="adjust">Adjust</option>
+          </select>
+        </label>
+        <label>Quantity: <input type="number" id="transactionQuantity" min="1" required></label>
+        <label>Reason: <input type="text" id="transactionReason"></label>
+        <button type="submit">Process Transaction</button>
+      </form>
+
+      <!-- Stock Transactions Table -->
+      <table id="transactionsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Item Name</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Reason</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Low Stock Alerts (will be populated) -->
+      <h4>⚠️ Low Stock Alerts</h4>
+      <table id="alertsTable">
+        <thead>
+          <tr><th>Item</th><th>Current Stock</th><th>Min Level</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Office Usage Section (Admin only) -->
+    <div id="officeUsageSection" class="card" style="display: none;">
+      <h3>🏢 Office Usage Tracking</h3>
+      <button id="addUsageBtn">+ Add Usage</button>
+      <table id="officeUsageTable">
+        <thead>
+          <tr><th>User</th><th>Type</th><th>Start Time</th><th>End Time</th><th>Purpose</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Inventory Item Details Modal -->
+    <div id="itemDetailsModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 id="modalItemName"></h3>
+        <div id="modalItemInfo">
+          <p><strong>Description:</strong> <span id="modalDescription"></span></p>
+          <p><strong>Category:</strong> <span id="modalCategory"></span></p>
+          <p><strong>Total Stock:</strong> <span id="modalTotalStock"></span> <span id="modalUnit"></span></p>
+          <p><strong>Current Stock:</strong> <span id="modalCurrentStock"></span> <span id="modalUnit2"></span></p>
+          <p><strong>Min Level:</strong> <span id="modalMinLevel"></span></p>
+          <p><strong>Reorder Threshold:</strong> <span id="modalReorderThreshold"></span></p>
+          <p><strong>Price per Unit:</strong> $<span id="modalPrice"></span></p>
+          <p><strong>Status:</strong> <span id="modalStatus"></span></p>
+        </div>
+        <h4>Recent Transactions</h4>
+        <table id="modalTransactionsTable">
+          <thead>
+            <tr><th>Type</th><th>Quantity</th><th>Reason</th><th>Date</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Office Usage Add Modal -->
+    <div id="addUsageModal" class="modal">
+      <div class="modal-content">
+        <span class="close" id="closeUsageModal">&times;</span>
+        <h3>Add Office Usage</h3>
+        <form id="addUsageForm">
+          <label>User ID: <input type="number" id="usageUserId" required></label>
+          <label>User Type:
+            <select id="usageUserType" required>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+              <option value="guest">Guest</option>
+            </select>
+          </label>
+          <label>Start Time: <input type="datetime-local" id="usageStartTime"></label>
+          <label>End Time: <input type="datetime-local" id="usageEndTime"></label>
+          <label>Purpose: <input type="text" id="usagePurpose"></label>
+          <button type="submit">Add Usage</button>
+        </form>
+      </div>
+    <!-- Room Details Modal -->
+    <div id="roomDetailsModal" class="modal">
+      <div class="modal-content">
+        <span class="close" id="closeRoomModal">&times;</span>
+        <h3 id="roomModalTitle">Room Details</h3>
+        <div id="roomModalInfo">
+          <p><strong>Type:</strong> <span id="modalRoomType"></span></p>
+          <p><strong>Rate:</strong> $<span id="modalRoomRate"></span></p>
+          <p><strong>Status:</strong> <span id="modalRoomStatus"></span></p>
+          <p><strong>Housekeeping State:</strong> <span id="modalHousekeepingState"></span></p>
+        </div>
+        <h4>Next Check-in / Check-out</h4>
+        <p id="modalNextEvents">No upcoming events</p>
+        <h4>Current / Recent Bookings</h4>
+        <table id="modalBookingsTable">
+          <thead>
+            <tr><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <h4>Actions</h4>
+        <div class="action-bar">
+          <button id="generateInvoiceBtn" style="display: none;">📄 Generate Invoice</button>
+          <button id="housekeepingLogBtn">🧹 View Housekeeping Log</button>
+        </div>
+      </div>
+    </div>
+    </div>
+    
+    <!-- Calendar View (Simple table for today/week) -->
+    <div class="card">
+      <h3>📆 Booking Calendar (Today)</h3>
+      <table id="calendarTable">
+        <thead>
+          <tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guest</th><th>Status</th></tr>
+  <!-- Toast Container -->
+  <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Occupancy Board -->
+    <div class="card">
+      <h3>🏠 Occupancy Board</h3>
+      <div id="occupancy">
+        <div><h4>Today's Check-ins</h4><div id="todayCheckins"></div></div>
+        <div><h4>Today's Check-outs</h4><div id="todayCheckouts"></div></div>
+        <div><h4>In-house Guests</h4><div id="inHouse"></div></div>
+        <div><h4>Late Check-outs</h4><div id="lateCheckouts"></div></div>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card">
+      <h3>📝 Activity Log</h3>
+      <table id="logTable">
+        <thead>
+          <tr><th>Time</th><th>User Role</th><th>Action</th><th>Entity</th><th>Description</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Property Gallery -->
+  <div class="card">
+    <h3>📸 Property Image Gallery</h3>
+    <div class="gallery">
+      <img src="https://img.freepik.com/free-photo/room-interior-hotel-bedroom_23-2150683419.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Room 1">
+      <img src="https://img.freepik.com/free-photo/interior-modern-comfortable-hotel-room_1232-1822.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Room 2">
+      <img src="https://img.freepik.com/free-photo/furniture-background-clean-wall-wood_1253-666.jpg?=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Furniture">
+      <img src="https://img.freepik.com/premium-photo/free-photo-interior-design-bedroom-with-modern-decoration_125604-1088.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Decorated Bedroom">
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
