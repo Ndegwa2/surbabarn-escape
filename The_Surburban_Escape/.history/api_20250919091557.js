@@ -1,0 +1,846 @@
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+const port = 3000;
+const JWT_SECRET = 'your_jwt_secret_key_change_in_production'; // kumbuka to change this in production
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+const dbPath = path.join(__dirname, 'hotel.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('❌ SQLite connection failed:', err);
+    process.exit(1);
+  }
+  console.log('✅ Connected to SQLite');
+  initializeDatabase();
+});
+
+// JWT middleware to verify token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).send('Access token required');
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).send('Invalid token');
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Admin middleware
+function isAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).send('Admin access required');
+  }
+  next();
+}
+
+// Initialize database tables
+function initializeDatabase() {
+  // Create guests table if not exists
+  db.run(`
+    CREATE TABLE IF NOT EXISTS guests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      email TEXT,
+      idNumber TEXT,
+      room TEXT,
+      status TEXT DEFAULT 'Checked In'
+    )
+  `);
+
+  // Create rooms table if not exists
+  db.run(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      base_rate REAL NOT NULL,
+      status TEXT DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'maintenance'))
+    )
+  `);
+
+  // Create conferences table if not exists
+  db.run(`
+    CREATE TABLE IF NOT EXISTS conferences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      capacity INTEGER NOT NULL DEFAULT 50,
+      equipment TEXT NOT NULL DEFAULT '["projector", "microphone", "speaker"]',
+      hourly_rate REAL NOT NULL DEFAULT 50.0,
+      daily_rate REAL NOT NULL DEFAULT 300.0,
+      status TEXT DEFAULT 'available' CHECK (status IN ('available', 'maintenance'))
+    )
+  `);
+
+  // Create bookings table if not exists
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guest_id INTEGER NOT NULL,
+      room_id INTEGER NOT NULL,
+      check_in_date DATE NOT NULL,
+      check_out_date DATE NOT NULL,
+      status TEXT DEFAULT 'reserved' CHECK (status IN ('reserved', 'checked_in', 'checked_out', 'cancelled', 'no_show')),
+      total_price REAL,
+      FOREIGN KEY (guest_id) REFERENCES guests (id) ON DELETE CASCADE,
+      FOREIGN KEY (room_id) REFERENCES rooms (id)
+    )
+  `);
+
+// Create accessories table if not exists
+db.run(`
+  CREATE TABLE IF NOT EXISTS accessories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    total_stock INTEGER NOT NULL DEFAULT 0,
+    available_stock INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+// Create conference_bookings table if not exists
+db.run(`
+  CREATE TABLE IF NOT EXISTS conference_bookings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    facility_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    status TEXT DEFAULT 'reserved' CHECK (status IN ('reserved', 'active', 'completed', 'cancelled')),
+    deposit REAL DEFAULT 0.0,
+    total_price REAL,
+    FOREIGN KEY (facility_id) REFERENCES conferences (id) ON DELETE CASCADE
+  )
+`);
+
+// Create accessory_allocations table if not exists
+db.run(`
+  CREATE TABLE IF NOT EXISTS accessory_allocations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    accessory_id INTEGER NOT NULL,
+    booking_id INTEGER,
+    conference_booking_id INTEGER,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    allocation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    return_date DATETIME,
+    status TEXT DEFAULT 'allocated' CHECK (status IN ('allocated', 'returned', 'lost', 'damaged')),
+    FOREIGN KEY (accessory_id) REFERENCES accessories (id) ON DELETE CASCADE,
+    FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE,
+    FOREIGN KEY (conference_booking_id) REFERENCES conference_bookings (id) ON DELETE CASCADE
+  )
+`);
+
+// Add quantity column if it doesn't exist (for existing DB)
+db.run("ALTER TABLE accessory_allocations ADD COLUMN quantity INTEGER DEFAULT 1", (err) => {
+  if (err && !err.message.includes('duplicate column name')) {
+    console.error('Error adding quantity column:', err);
+  } else {
+    console.log('✅ Added quantity column to accessory_allocations if needed');
+  }
+});
+
+// Add conference booking columns if they don't exist (for existing DB)
+const confColumns = ['facility_id INTEGER', 'start_time TIME', 'end_time TIME', 'deposit REAL DEFAULT 0.0'];
+confColumns.forEach(col => {
+  db.run(`ALTER TABLE conference_bookings ADD COLUMN ${col}`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error(`Error adding column ${col}:`, err);
+    } else {
+      console.log(`✅ Added column ${col.split(' ')[0]} to conference_bookings if needed`);
+    }
+  });
+});
+
+// Create activity_logs table if not exists
+db.run(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      user_role TEXT DEFAULT 'staff',
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id INTEGER,
+      description TEXT
+    )
+  `);
+
+  // Create users table if not exists
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin', 'staff'))
+    )
+  `);
+
+  // Seed initial users if table empty
+  db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
+    if (row && row.count === 0) {
+      const saltRounds = 10;
+      bcrypt.hash('admin', saltRounds, (err, adminHash) => {
+        if (!err) db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ['admin', adminHash, 'admin']);
+      });
+      bcrypt.hash('staff', saltRounds, (err, staffHash) => {
+        if (!err) db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ['staff', staffHash, 'staff']);
+      });
+      console.log('✅ Seeded initial users');
+    }
+  });
+
+  // Seed initial rooms data from data.json if rooms table is empty
+  db.get("SELECT COUNT(*) as count FROM rooms", (err, row) => {
+    if (row && row.count === 0) {
+      const data = JSON.parse(fs.readFileSync('data.json', 'utf8'));
+      const bedrooms = data.bedrooms;
+      for (const [key, room] of Object.entries(bedrooms)) {
+        const baseRate = key.startsWith('ensuite') ? 100.00 : 80.00; // Sample rates
+        db.run(
+          "INSERT INTO rooms (name, type, base_rate, status) VALUES (?, ?, ?, ?)",
+          [room.name, room.type, baseRate, room.status]
+        );
+      }
+      console.log('✅ Seeded initial rooms data');
+    }
+  });
+
+  // Seed initial conference data from data.json if conferences table is empty
+  db.get("SELECT COUNT(*) as count FROM conferences", (err, row) => {
+    if (row && row.count === 0) {
+      const data = JSON.parse(fs.readFileSync('data.json', 'utf8'));
+      const confFacility = data.conferencing_facility;
+      if (confFacility) {
+        db.run(
+          "INSERT INTO conferences (name, capacity, equipment, hourly_rate, daily_rate, status) VALUES (?, ?, ?, ?, ?, ?)",
+          [confFacility.name, 50, '["projector", "microphone", "speaker", "whiteboard"]', 50.00, 300.00, confFacility.status]
+        );
+        console.log('✅ Seeded initial conference facility data');
+      }
+    }
+  });
+}
+
+// Helper to log activity
+function logActivity(action, entityType, entityId, description = '', userRole = 'staff') {
+  db.run(
+    "INSERT INTO activity_logs (action, entity_type, entity_id, description, user_role) VALUES (?, ?, ?, ?, ?)",
+    [action, entityType, entityId, description, userRole]
+  );
+}
+
+// Login route
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  db.get("SELECT id, username, password_hash, role FROM users WHERE username = ?", [username], (err, user) => {
+    if (err || !user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    bcrypt.compare(password, user.password_hash, (err, match) => {
+      if (err || !match) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+      res.json({ token, role: user.role });
+    });
+  });
+});
+
+// Protected routes use authenticateToken
+
+// Check-in route: Create guest and booking (protected)
+app.post('/checkin', authenticateToken, (req, res) => {
+  const { name, phone, email, idNumber, roomName, checkInDate, checkOutDate } = req.body;
+  
+  db.run("INSERT INTO guests (name, phone, email, idNumber, room, status) VALUES (?, ?, ?, ?, ?, ?)", 
+    [name, phone, email, idNumber, roomName, 'Checked In'], function(err) {
+      if (err) {
+        console.error('❌ Error inserting guest:', err);
+        return res.status(500).send('Error inserting guest');
+      }
+      const guestId = this.lastID;
+
+      // Find room ID by name
+      db.get("SELECT id FROM rooms WHERE name = ?", [roomName], (err, room) => {
+        if (err || !room) {
+          return res.status(500).send('Room not found');
+        }
+        const roomId = room.id;
+
+        // Calculate nights and total price
+        const checkIn = new Date(checkInDate);
+        const checkOut = new Date(checkOutDate);
+        const nights = (checkOut - checkIn) / (1000 * 60 * 60 * 24);
+        db.get("SELECT base_rate FROM rooms WHERE id = ?", [roomId], (err, r) => {
+          if (err || !r) return res.status(500).send('Error calculating price');
+          const totalPrice = r.base_rate * nights;
+
+          // Update room status to occupied
+          db.run("UPDATE rooms SET status = 'occupied' WHERE id = ?", [roomId]);
+
+          // Create booking
+          db.run(
+            "INSERT INTO bookings (guest_id, room_id, check_in_date, check_out_date, status, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+            [guestId, roomId, checkInDate, checkOutDate, 'checked_in', totalPrice], function(err) {
+              if (err) {
+                console.error('❌ Error creating booking:', err);
+                return res.status(500).send('Error creating booking');
+              }
+              logActivity('checkin', 'guest', guestId, `Checked in to room ${roomName}`, req.user.role);
+              logActivity('checkin', 'booking', this.lastID, '', req.user.role);
+              console.log('✅ Guest checked in:', name);
+              res.status(200).send('Guest checked in successfully');
+            }
+          );
+        });
+      });
+    }
+  );
+});
+
+// Checkout route: Update booking status, room status (protected)
+app.post('/checkout/:id', authenticateToken, (req, res) => {
+  const guestId = req.params.id;
+  db.get("SELECT b.id as booking_id, b.room_id, b.status FROM bookings b JOIN guests g ON b.guest_id = g.id WHERE g.id = ? AND b.status = 'checked_in'", [guestId], (err, booking) => {
+    if (err || !booking) {
+      return res.status(500).send('Booking not found or not checked in');
+    }
+    db.run("UPDATE bookings SET status = 'checked_out' WHERE id = ?", [booking.booking_id]);
+    db.run("UPDATE rooms SET status = 'available' WHERE id = ?", [booking.room_id]);
+    db.run("UPDATE guests SET status = 'Checked Out' WHERE id = ?", [guestId]);
+    logActivity('checkout', 'booking', booking.booking_id, 'Checked out', req.user.role);
+    console.log('✅ Guest checked out. ID:', guestId);
+    res.status(200).send('Guest checked out successfully');
+  });
+});
+
+// Get all guests with booking info (protected)
+app.get('/guests', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT g.id, g.name, g.phone, g.email, g.idNumber, g.room, g.status,
+           b.check_in_date, b.check_out_date, b.status as booking_status
+    FROM guests g LEFT JOIN bookings b ON g.id = b.guest_id AND b.status != 'cancelled'
+    ORDER BY g.id DESC
+  `, (err, results) => {
+    if (err) {
+      console.error('❌ Error fetching guests:', err);
+      return res.status(500).send('Error fetching guests');
+    }
+    res.status(200).json(results);
+  });
+});
+
+// CRUD for rooms (protected, admin for write/delete)
+app.get('/rooms', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM rooms", (err, results) => {
+    if (err) return res.status(500).send('Error fetching rooms');
+    res.json(results);
+  });
+});
+
+app.post('/rooms', authenticateToken, isAdmin, (req, res) => {
+  const { name, type, base_rate, status } = req.body;
+  db.run("INSERT INTO rooms (name, type, base_rate, status) VALUES (?, ?, ?, ?)", 
+    [name, type, base_rate, status], function(err) {
+      if (err) return res.status(500).send('Error creating room');
+      logActivity('create', 'room', this.lastID, '', req.user.role);
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/rooms/:id', authenticateToken, isAdmin, (req, res) => {
+  const { name, type, base_rate, status } = req.body;
+  const id = req.params.id;
+  db.run("UPDATE rooms SET name = ?, type = ?, base_rate = ?, status = ? WHERE id = ?", 
+    [name, type, base_rate, status, id], function(err) {
+      if (err) return res.status(500).send('Error updating room');
+      if (this.changes === 0) return res.status(404).send('Room not found');
+      logActivity('update', 'room', id, '', req.user.role);
+      res.json({ updated: true });
+    }
+  );
+});
+
+app.delete('/rooms/:id', authenticateToken, isAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run("DELETE FROM rooms WHERE id = ?", [id], function(err) {
+    if (err) return res.status(500).send('Error deleting room');
+    if (this.changes === 0) return res.status(404).send('Room not found');
+    logActivity('delete', 'room', id, '', req.user.role);
+    res.json({ deleted: true });
+  });
+});
+
+// CRUD for conferences (protected, admin for write/delete)
+app.get('/conferences', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM conferences ORDER BY name", (err, results) => {
+    if (err) return res.status(500).send('Error fetching conferences');
+    res.json(results);
+  });
+});
+
+app.post('/conferences', authenticateToken, isAdmin, (req, res) => {
+  const { name, capacity, equipment, hourly_rate, daily_rate, status } = req.body;
+  const equipJson = JSON.stringify(equipment || ["projector", "microphone", "speaker"]);
+  db.run("INSERT INTO conferences (name, capacity, equipment, hourly_rate, daily_rate, status) VALUES (?, ?, ?, ?, ?, ?)",
+    [name, capacity || 50, equipJson, hourly_rate || 50.0, daily_rate || 300.0, status || 'available'], function(err) {
+      if (err) return res.status(500).send('Error creating conference facility');
+      logActivity('create', 'conference', this.lastID, '', req.user.role);
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/conferences/:id', authenticateToken, isAdmin, (req, res) => {
+  const { name, capacity, equipment, hourly_rate, daily_rate, status } = req.body;
+  const id = req.params.id;
+  const equipJson = JSON.stringify(equipment || ["projector", "microphone", "speaker"]);
+  db.run("UPDATE conferences SET name = ?, capacity = ?, equipment = ?, hourly_rate = ?, daily_rate = ?, status = ? WHERE id = ?",
+    [name, capacity, equipJson, hourly_rate, daily_rate, status, id], function(err) {
+      if (err) return res.status(500).send('Error updating conference facility');
+      if (this.changes === 0) return res.status(404).send('Conference facility not found');
+      logActivity('update', 'conference', id, '', req.user.role);
+      res.json({ updated: true });
+    }
+  );
+});
+
+app.delete('/conferences/:id', authenticateToken, isAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run("DELETE FROM conferences WHERE id = ?", [id], function(err) {
+    if (err) return res.status(500).send('Error deleting conference facility');
+    if (this.changes === 0) return res.status(404).send('Conference facility not found');
+    logActivity('delete', 'conference', id, '', req.user.role);
+    res.json({ deleted: true });
+  });
+});
+
+// CRUD for bookings (protected, admin for write/delete)
+app.get('/bookings', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT b.*, g.name as guest_name, r.name as room_name, r.base_rate
+    FROM bookings b
+    JOIN guests g ON b.guest_id = g.id
+    JOIN rooms r ON b.room_id = r.id
+    ORDER BY b.check_in_date DESC
+  `, (err, results) => {
+    if (err) return res.status(500).send('Error fetching bookings');
+    res.json(results);
+  });
+});
+
+app.post('/bookings', authenticateToken, isAdmin, (req, res) => {
+  const { guest_id, room_id, check_in_date, check_out_date, status } = req.body;
+  const checkIn = new Date(check_in_date);
+  const checkOut = new Date(check_out_date);
+  const nights = (checkOut - checkIn) / (1000 * 60 * 60 * 24);
+  db.get("SELECT base_rate FROM rooms WHERE id = ?", [room_id], (err, room) => {
+    if (err || !room) return res.status(500).send('Room not found');
+    const total_price = room.base_rate * nights;
+    db.run(
+      "INSERT INTO bookings (guest_id, room_id, check_in_date, check_out_date, status, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+      [guest_id, room_id, check_in_date, check_out_date, status || 'reserved', total_price], function(err) {
+        if (err) return res.status(500).send('Error creating booking');
+        if (status === 'reserved') {
+          db.run("UPDATE rooms SET status = 'occupied' WHERE id = ?", [room_id]);
+        }
+        logActivity('create', 'booking', this.lastID, '', req.user.role);
+        res.json({ id: this.lastID });
+      }
+    );
+  });
+});
+
+app.put('/bookings/:id', authenticateToken, (req, res) => {
+  const { status, check_out_date } = req.body;
+  const id = req.params.id;
+  if (status === 'checked_out' && check_out_date) {
+    db.run("UPDATE bookings SET status = ?, check_out_date = ? WHERE id = ?", [status, check_out_date, id], function(err) {
+      if (err) return res.status(500).send('Error updating booking');
+      if (this.changes === 0) return res.status(404).send('Booking not found');
+      db.run("UPDATE rooms SET status = 'available' WHERE id IN (SELECT room_id FROM bookings WHERE id = ?)", [id]);
+      logActivity('update', 'booking', id, `Status to ${status}`, req.user.role);
+      res.json({ updated: true });
+    });
+  } else {
+    db.run("UPDATE bookings SET status = ? WHERE id = ?", [status, id], function(err) {
+      if (err) return res.status(500).send('Error updating booking');
+      if (this.changes === 0) return res.status(404).send('Booking not found');
+      logActivity('update', 'booking', id, `Status to ${status}`, req.user.role);
+      res.json({ updated: true });
+    });
+  }
+});
+
+app.delete('/bookings/:id', authenticateToken, isAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run("DELETE FROM bookings WHERE id = ?", [id], function(err) {
+    if (err) return res.status(500).send('Error deleting booking');
+    if (this.changes === 0) return res.status(404).send('Booking not found');
+    db.run("UPDATE rooms SET status = 'available' WHERE id IN (SELECT room_id FROM bookings WHERE id = ?)", [id]);
+    logActivity('delete', 'booking', id, 'Cancelled', req.user.role);
+    res.json({ deleted: true });
+  });
+});
+
+// CRUD for conference_bookings (protected, admin for write/delete)
+app.get('/conference-bookings', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM conference_bookings ORDER BY date DESC", (err, results) => {
+    if (err) return res.status(500).send('Error fetching conference bookings');
+    res.json(results);
+  });
+});
+
+app.post('/conference-bookings', authenticateToken, isAdmin, (req, res) => {
+  const { name, date, status, total_price } = req.body;
+  db.run(
+    "INSERT INTO conference_bookings (name, date, status, total_price) VALUES (?, ?, ?, ?)",
+    [name, date, status || 'reserved', total_price], function(err) {
+      if (err) return res.status(500).send('Error creating conference booking');
+      logActivity('create', 'conference_booking', this.lastID, '', req.user.role);
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/conference-bookings/:id', authenticateToken, (req, res) => {
+  const { status } = req.body;
+  const id = req.params.id;
+  db.run("UPDATE conference_bookings SET status = ? WHERE id = ?", [status, id], function(err) {
+    if (err) return res.status(500).send('Error updating conference booking');
+    if (this.changes === 0) return res.status(404).send('Conference booking not found');
+    logActivity('update', 'conference_booking', id, `Status to ${status}`, req.user.role);
+    res.json({ updated: true });
+  });
+});
+
+app.delete('/conference-bookings/:id', authenticateToken, isAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run("DELETE FROM conference_bookings WHERE id = ?", [id], function(err) {
+    if (err) return res.status(500).send('Error deleting conference booking');
+    if (this.changes === 0) return res.status(404).send('Conference booking not found');
+    logActivity('delete', 'conference_booking', id, '', req.user.role);
+    res.json({ deleted: true });
+  });
+});
+
+// CRUD for accessories (protected, admin for write/delete)
+app.get('/accessories', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM accessories ORDER BY name", (err, results) => {
+    if (err) return res.status(500).send('Error fetching accessories');
+    res.json(results);
+  });
+});
+
+app.post('/accessories', authenticateToken, isAdmin, (req, res) => {
+  const { name, description, total_stock, available_stock } = req.body;
+  let adjusted_available = available_stock;
+  if (available_stock > total_stock) {
+    adjusted_available = total_stock;
+  }
+  db.run("INSERT INTO accessories (name, description, total_stock, available_stock) VALUES (?, ?, ?, ?)",
+    [name, description || '', total_stock, adjusted_available], function(err) {
+      if (err) return res.status(500).send('Error creating accessory');
+      logActivity('create', 'accessory', this.lastID, `Created ${name}`, req.user.role);
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/accessories/:id', authenticateToken, isAdmin, (req, res) => {
+  const { name, description, total_stock, available_stock } = req.body;
+  const id = req.params.id;
+  let adjusted_available = available_stock;
+  if (available_stock > total_stock) {
+    adjusted_available = total_stock;
+  }
+  db.run("UPDATE accessories SET name = ?, description = ?, total_stock = ?, available_stock = ? WHERE id = ?",
+    [name, description || '', total_stock, adjusted_available, id], function(err) {
+      if (err) return res.status(500).send('Error updating accessory');
+      if (this.changes === 0) return res.status(404).send('Accessory not found');
+      logActivity('update', 'accessory', id, `Updated ${name}`, req.user.role);
+      res.json({ updated: true });
+    }
+  );
+});
+
+app.delete('/accessories/:id', authenticateToken, isAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run("DELETE FROM accessories WHERE id = ?", [id], function(err) {
+    if (err) return res.status(500).send('Error deleting accessory');
+    if (this.changes === 0) return res.status(404).send('Accessory not found');
+    logActivity('delete', 'accessory', id, '', req.user.role);
+    res.json({ deleted: true });
+  });
+});
+
+// Allocate accessory to booking or conference (protected)
+app.post('/accessories/allocate', authenticateToken, (req, res) => {
+  const { accessory_id, quantity = 1, booking_id, conference_booking_id } = req.body;
+
+  if (quantity < 1) {
+    return res.status(400).send('Quantity must be at least 1');
+  }
+
+  // Validate exactly one booking type
+  const hasBooking = booking_id !== undefined;
+  const hasConfBooking = conference_booking_id !== undefined;
+  if ((hasBooking && hasConfBooking) || (!hasBooking && !hasConfBooking)) {
+    return res.status(400).send('Exactly one of booking_id or conference_booking_id must be provided');
+  }
+
+  // Check booking/conference exists and is active
+  const entityType = hasBooking ? 'booking' : 'conference_booking';
+  const entityId = hasBooking ? booking_id : conference_booking_id;
+  const statusCheck = hasBooking ? "status = 'checked_in'" : "status = 'active'";
+  const table = hasBooking ? 'bookings' : 'conference_bookings';
+  db.get(`SELECT id FROM ${table} WHERE id = ? AND ${statusCheck}`, [entityId], (err, entity) => {
+    if (err || !entity) {
+      return res.status(404).send(`${entityType.charAt(0).toUpperCase() + entityType.slice(1)} not found or not active`);
+    }
+
+    // Check accessory and stock
+    db.get("SELECT name, available_stock FROM accessories WHERE id = ?", [accessory_id], (err, accessory) => {
+      if (err || !accessory) {
+        return res.status(404).send('Accessory not found');
+      }
+      if (accessory.available_stock < quantity) {
+        return res.status(400).send(`Insufficient stock. Available: ${accessory.available_stock}, Requested: ${quantity}`);
+      }
+
+      const entityField = hasBooking ? 'booking_id' : 'conference_booking_id';
+
+      // Insert allocation
+      db.run(
+        `INSERT INTO accessory_allocations (accessory_id, ${entityField}, quantity, status) VALUES (?, ?, ?, ?)`,
+        [accessory_id, entityId, quantity, 'allocated'],
+        function(err) {
+          if (err) return res.status(500).send('Error creating allocation');
+          const allocationId = this.lastID;
+
+          // Update stock
+          db.run("UPDATE accessories SET available_stock = available_stock - ? WHERE id = ?", [quantity, accessory_id], (err) => {
+            if (err) return res.status(500).send('Error updating stock');
+          });
+
+          // Log
+          const description = `Allocated ${quantity} ${accessory.name} to ${entityType} ${entityId}`;
+          logActivity('allocate', 'accessory_allocation', allocationId, description, req.user.role);
+
+          res.json({ id: allocationId, message: 'Accessory allocated successfully' });
+        }
+      );
+    });
+  });
+});
+
+// Return accessory (protected)
+app.post('/accessories/return', authenticateToken, (req, res) => {
+  const { allocation_id } = req.body;
+
+  if (!allocation_id) {
+    return res.status(400).send('allocation_id is required');
+  }
+
+  // Get allocation details, check status 'allocated'
+  db.get(`
+    SELECT aa.id, aa.accessory_id, aa.quantity, a.name
+    FROM accessory_allocations aa
+    JOIN accessories a ON aa.accessory_id = a.id
+    WHERE aa.id = ? AND aa.status = 'allocated'
+  `, [allocation_id], (err, allocation) => {
+    if (err || !allocation) {
+      return res.status(404).send('Allocated accessory not found');
+    }
+
+    // Update allocation to returned
+    db.run(
+      "UPDATE accessory_allocations SET status = 'returned', return_date = CURRENT_TIMESTAMP WHERE id = ?",
+      [allocation_id],
+      function(err) {
+        if (err) return res.status(500).send('Error updating allocation');
+        if (this.changes === 0) return res.status(404).send('Allocation not found');
+
+        // Restore available stock
+        db.run(
+          "UPDATE accessories SET available_stock = available_stock + ? WHERE id = ?",
+          [allocation.quantity, allocation.accessory_id],
+          (err) => {
+            if (err) return res.status(500).send('Error updating stock');
+          }
+        );
+
+        // Log activity
+        const description = `Returned ${allocation.quantity} ${allocation.name}`;
+        logActivity('return', 'accessory_allocation', allocation_id, description, req.user.role);
+
+        res.json({ message: 'Accessory returned successfully' });
+      }
+    );
+  });
+});
+
+// Mark accessory as lost (protected)
+app.post('/accessories/lost', authenticateToken, (req, res) => {
+  const { allocation_id } = req.body;
+
+  if (!allocation_id) {
+    return res.status(400).send('allocation_id is required');
+  }
+
+  // Get allocation details, check status 'allocated'
+  db.get(`
+    SELECT aa.id, aa.accessory_id, aa.quantity, a.name, a.total_stock
+    FROM accessory_allocations aa
+    JOIN accessories a ON aa.accessory_id = a.id
+    WHERE aa.id = ? AND aa.status = 'allocated'
+  `, [allocation_id], (err, allocation) => {
+    if (err || !allocation) {
+      return res.status(404).send('Allocated accessory not found');
+    }
+
+    // Update allocation to lost
+    db.run(
+      "UPDATE accessory_allocations SET status = 'lost' WHERE id = ?",
+      [allocation_id],
+      function(err) {
+        if (err) return res.status(500).send('Error updating allocation');
+        if (this.changes === 0) return res.status(404).send('Allocation not found');
+
+        // Reduce total stock (lost items are removed from inventory)
+        db.run(
+          "UPDATE accessories SET total_stock = total_stock - ? WHERE id = ?",
+          [allocation.quantity, allocation.accessory_id],
+          (err) => {
+            if (err) return res.status(500).send('Error updating stock');
+          }
+        );
+
+        // Log activity
+        const description = `Marked ${allocation.quantity} ${allocation.name} as lost`;
+        logActivity('lost', 'accessory_allocation', allocation_id, description, req.user.role);
+
+        res.json({ message: 'Accessory marked as lost' });
+      }
+    );
+  });
+});
+
+// Mark accessory as damaged (protected)
+app.post('/accessories/damaged', authenticateToken, (req, res) => {
+  const { allocation_id } = req.body;
+
+  if (!allocation_id) {
+    return res.status(400).send('allocation_id is required');
+  }
+
+  // Get allocation details, check status 'allocated'
+  db.get(`
+    SELECT aa.id, aa.accessory_id, aa.quantity, a.name, a.total_stock
+    FROM accessory_allocations aa
+    JOIN accessories a ON aa.accessory_id = a.id
+    WHERE aa.id = ? AND aa.status = 'allocated'
+  `, [allocation_id], (err, allocation) => {
+    if (err || !allocation) {
+      return res.status(404).send('Allocated accessory not found');
+    }
+
+    // Update allocation to damaged
+    db.run(
+      "UPDATE accessory_allocations SET status = 'damaged' WHERE id = ?",
+      [allocation_id],
+      function(err) {
+        if (err) return res.status(500).send('Error updating allocation');
+        if (this.changes === 0) return res.status(404).send('Allocation not found');
+
+        // Reduce total stock (damaged items are removed from inventory)
+        db.run(
+          "UPDATE accessories SET total_stock = total_stock - ? WHERE id = ?",
+          [allocation.quantity, allocation.accessory_id],
+          (err) => {
+            if (err) return res.status(500).send('Error updating stock');
+          }
+        );
+
+        // Log activity
+        const description = `Marked ${allocation.quantity} ${allocation.name} as damaged`;
+        logActivity('damaged', 'accessory_allocation', allocation_id, description, req.user.role);
+
+        res.json({ message: 'Accessory marked as damaged' });
+      }
+    );
+  });
+});
+
+// Get accessory allocations with joined data (protected)
+app.get('/accessory-allocations', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT aa.*,
+           a.name as accessory_name, a.description,
+           COALESCE(b.id, c.id) as entity_id,
+           COALESCE(g.name, c.name) as entity_name,
+           COALESCE(b.check_in_date, c.date) as entity_date,
+           b.room_id, r.name as room_name,
+           g.phone as guest_phone,
+           CASE
+             WHEN b.id IS NOT NULL THEN 'booking'
+             WHEN c.id IS NOT NULL THEN 'conference_booking'
+           END as entity_type
+    FROM accessory_allocations aa
+    JOIN accessories a ON aa.accessory_id = a.id
+    LEFT JOIN bookings b ON aa.booking_id = b.id
+    LEFT JOIN conference_bookings c ON aa.conference_booking_id = c.id
+    LEFT JOIN guests g ON b.guest_id = g.id
+    LEFT JOIN rooms r ON b.room_id = r.id
+    ORDER BY aa.allocation_date DESC
+  `, (err, results) => {
+    if (err) return res.status(500).send('Error fetching accessory allocations');
+    res.json(results);
+  });
+});
+
+// Get activity logs (protected)
+app.get('/logs', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 50", (err, results) => {
+    if (err) return res.status(500).send('Error fetching logs');
+    res.json(results);
+  });
+});
+
+// Serve frontend
+app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Server listening on http://localhost:${port}`);
+});
+
+// Close db on exit
+process.on('SIGINT', () => {
+  db.close((err) => {
+    if (err) console.error(err.message);
+    console.log('✅ SQLite connection closed');
+    process.exit(0);
+  });
+});

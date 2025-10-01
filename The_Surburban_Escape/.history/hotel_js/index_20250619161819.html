@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Suburban Escape</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+      margin: 0;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+    }
+    .gallery img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    h2, h3, h4 {
+      color: #2c3e50;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #5c6bc0;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 2px;
+    }
+    .btn-edit {
+      background-color: #42a5f5;
+    }
+    .btn-delete {
+      background-color: #ef5350;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #eee;
+    }
+    form.inline {
+      display: inline;
+    }
+    @media screen and (max-width: 768px) {
+      .card {
+        padding: 10px;
+      }
+      input, button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h2>🏡 The Suburban Escape – Guest & Booking Management</h2>
+
+<div class="card">
+  <h3>📸 Property Image Gallery</h3>
+  <div class="gallery">
+    <img src="https://img.freepik.com/free-photo/room-interior-hotel-bedroom_23-2150683419.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Room 1">
+    <img src="https://img.freepik.com/free-photo/interior-modern-comfortable-hotel-room_1232-1822.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Room 2">
+    <img src="https://img.freepik.com/free-photo/furniture-background-clean-wall-wood_1253-666.jpg?=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Furniture">
+    <img src="https://img.freepik.com/premium-photo/free-photo-interior-design-bedroom-with-modern-decoration_125604-1088.jpg?ga=GA1.1.1362746214.1749109585&semt=ais_items_boosted&w=740" alt="Decorated Bedroom">
+  </div>
+</div>
+
+<div class="card">
+  <h3>👥 Guest Booking</h3>
+  <form id="checkinForm">
+    <label>Full Name:
+      <input type="text" id="name" name="name" required>
+    </label>
+    <label>Phone Number:
+      <input type="text" id="phone" name="phone" required>
+    </label>
+    <label>Email Address:
+      <input type="email" id="email" name="email">
+    </label>
+    <label>ID/Passport Number:
+      <input type="text" id="idNumber" name="idNumber">
+    </label>
+    <button type="submit">Check In</button>
+  </form>
+
+  <h4>Checked-In Guests</h4>
+  <table id="guestTable">
+    <thead>
+      <tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>🏢 Conference Room</h3>
+  <p>Booking status and amenities: Projector, Chairs, Table, Wi-Fi, Water.</p>
+  <table>
+    <tr><th>Date</th><th>Booked By</th><th>Time</th><th>Status</th></tr>
+    <tr><td>2025-06-08</td><td>Jane Doe</td><td>10AM–1PM</td><td>Booked</td></tr>
+    <tr><td>2025-06-09</td><td>—</td><td>—</td><td>Available</td></tr>
+  </table>
+  <button onclick="alert('Conference booking system coming soon')">Book Room</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

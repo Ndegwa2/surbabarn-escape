@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maid Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+
+        .date-shift {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .date-shift h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .shift-hours {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .card.rooms-to-clean {
+            border-top: 5px solid #dc3545;
+        }
+
+        .card.in-progress {
+            border-top: 5px solid #fd7e14;
+        }
+
+        .card.completed {
+            border-top: 5px solid #28a745;
+        }
+
+        .card-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .card-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .tabs {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+
+        .tab-button {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .room-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .room-info {
+            flex: 1;
+        }
+
+        .room-number {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .guest-status {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .priority-medium {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .status-toggle {
+            display: flex;
+            gap: 5px;
+        }
+
+        .status-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .status-dirty {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .status-cleaning {
+            background-color: #fd7e14;
+            color: white;
+        }
+
+        .status-ready {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .checklist-btn {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group select,
+        .form-group textarea,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: #0069d9;
+        }
+
+        .supply-btn {
+            padding: 15px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .supply-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .clock-btn {
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .clock-btn.clock-out {
+            background-color: #dc3545;
+        }
+
+        .shift-summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .close {
+            float: right;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+
+        .checklist-item input {
+            margin-right: 10px;
+        }
+
+        .checklist-item label {
+            flex: 1;
+        }
+
+        .checklist-item.completed {
+            background-color: #d4edda;
+        }
+
+        .checklist-item.completed label {
+            text-decoration: line-through;
+            color: #28a745;
+        }
+
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .nav-item.active {
+            color: #007bff;
+        }
+
+        .nav-item i {
+            font-size: 20px;
+            margin-bottom: 3px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Maid Dashboard</h1>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="date-shift">
+        <h2 id="currentDate">Loading...</h2>
+        <div class="shift-hours">Shift: <span id="shiftStart">08:00 AM</span> - <span id="shiftEnd">04:00 PM</span></div>
+    </div>
+
+    <div class="summary-cards">
+        <div class="card rooms-to-clean">
+            <div class="card-number" id="roomsToClean">0</div>
+            <div class="card-label">Rooms to Clean</div>
+        </div>
+        <div class="card in-progress">
+            <div class="card-number" id="inProgress">0</div>
+            <div class="card-label">In Progress</div>
+        </div>
+        <div class="card completed">
+            <div class="card-number" id="completed">0</div>
+            <div class="card-label">Completed</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab-buttons">
+            <button class="tab-button active" data-tab="my-tasks">🛏️ My Tasks</button>
+            <button class="tab-button" data-tab="report-issues">🛠️ Report Issues</button>
+            <button class="tab-button" data-tab="supplies">📦 Supplies</button>
+            <button class="tab-button" data-tab="shift-log">⏱️ Shift Log</button>
+        </div>
+
+        <div id="my-tasks" class="tab-content active">
+            <div class="room-list" id="roomList">
+                <!-- Room items will be populated here -->
+            </div>
+        </div>
+
+        <div id="report-issues" class="tab-content">
+            <form id="issueForm">
+                <div class="form-group">
+                    <label for="issueRoom">Select Room</label>
+                    <select id="issueRoom" required>
+                        <option value="">Select a room</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="issueDescription">Problem Description</label>
+                    <textarea id="issueDescription" rows="4" placeholder="Describe the issue..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="issuePhoto">Upload Photo (optional)</label>
+                    <input type="file" id="issuePhoto" accept="image/*">
+                </div>
+                <button type="submit" class="btn">Send to Manager</button>
+            </form>
+        </div>
+
+        <div id="supplies" class="tab-content">
+            <button class="supply-btn" onclick="requestSupply('towels')">Request More Towels</button>
+            <button class="supply-btn" onclick="requestSupply('soap')">Request More Soap</button>
+            <button class="supply-btn" onclick="requestSupply('cleaning')">Request Cleaning Supplies</button>
+        </div>
+
+        <div id="shift-log" class="tab-content">
+            <button class="clock-btn" id="clockInBtn">Clock In</button>
+            <button class="clock-btn clock-out" id="clockOutBtn">Clock Out</button>
+            <div class="shift-summary">
+                <h3>Today's Summary</h3>
+                <p>Rooms Cleaned: <span id="roomsCleaned">0</span></p>
+                <p>Issues Reported: <span id="issuesReported">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleaning Checklist Modal -->
+    <div class="modal" id="checklistModal">
+        <div class="modal-content">
+            <span class="close" id="closeChecklistModal">&times;</span>
+            <h2>Cleaning Checklist - Room <span id="checklistRoomNumber"></span></h2>
+            <form id="checklistForm">
+                <div class="checklist-item">
+                    <input type="checkbox" id="task1" name="task1">
+                    <label for="task1">Change bed linens</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="task2" name="task2">
+                    <label for="task2">Replace towels</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="task3" name="task3">
+                    <label for="task3">Refill toiletries</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="task4" name="task4">
+                    <label for="task4">Empty trash</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="task5" name="task5">
+                    <label for="task5">Vacuum/mop floor</label>
+                </div>
+                <button type="submit" class="btn">Submit & Mark as Ready</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="nav-bar">
+        <a href="#" class="nav-item active" data-tab="my-tasks">
+            <i>🛏️</i>
+            <span>Tasks</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="report-issues">
+            <i>🛠️</i>
+            <span>Issues</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="supplies">
+            <i>📦</i>
+            <span>Supplies</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="shift-log">
+            <i>⏱️</i>
+            <span>Shift</span>
+        </a>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <span class="close" id="closeMaintenanceModal">&times;</span>
+            <h2>Report Maintenance Issue</h2>
+            <form id="maintenanceForm">
+                <div class="form-group">
+                    <label for="maintenanceRoom">Room Number</label>
+                    <select id="maintenanceRoom" required>
+                        <option value="">Select a room</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceIssue">Issue Description</label>
+                    <textarea id="maintenanceIssue" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-block">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div class="modal" id="inventoryModal">
+        <div class="modal-content">
+            <span class="close" id="closeInventoryModal">&times;</span>
+            <h2>Request Inventory</h2>
+            <form id="inventoryForm">
+                <div class="form-group">
+                    <label for="inventoryItem">Item</label>
+                    <select id="inventoryItem" required>
+                        <option value="">Select an item</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="inventoryQuantity">Quantity</label>
+                    <input type="number" id="inventoryQuantity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="inventoryReason">Reason</label>
+                    <textarea id="inventoryReason" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-block">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Issue Modal -->
+    <div class="modal" id="issueModal">
+        <div class="modal-content">
+            <span class="close" id="closeIssueModal">&times;</span>
+            <h2>Report Lost/Damaged Item</h2>
+            <form id="issueForm">
+                <div class="form-group">
+                    <label for="issueItem">Item</label>
+                    <select id="issueItem" required>
+                        <option value="">Select an item</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="issueType">Type</label>
+                    <select id="issueType" required>
+                        <option value="lost">Lost</option>
+                        <option value="damaged">Damaged</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="issueQuantity">Quantity</label>
+                    <input type="number" id="issueQuantity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="issueRoom">Room Number</label>
+                    <select id="issueRoom" required>
+                        <option value="">Select a room</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-block">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        let token = localStorage.getItem('token');
+        let userRole = localStorage.getItem('role');
+
+        if (!token || userRole !== 'staff') {
+            window.location.href = '/';
+        }
+
+        // Helper to get auth headers
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        // Generic fetch helper
+        async function apiFetch(url, options = {}) {
+            const fullUrl = url.startsWith('http') ? url : `http://localhost:3000${url}`;
+            const response = await fetch(fullUrl, {
+                ...options,
+                headers: {
+                    ...getAuthHeaders(),
+                    ...options.headers
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('role');
+                    token = null;
+                    userRole = null;
+                    window.location.href = '/';
+                    throw new Error(`API error: ${response.status}`);
+                }
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // Logout function
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            window.location.href = '/';
+        });
+
+        // Close modal functionality
+        document.getElementById('closeMaintenanceModal').addEventListener('click', () => {
+            document.getElementById('maintenanceModal').style.display = 'none';
+        });
+
+        document.getElementById('closeInventoryModal').addEventListener('click', () => {
+            document.getElementById('inventoryModal').style.display = 'none';
+        });
+
+        document.getElementById('closeIssueModal').addEventListener('click', () => {
+            document.getElementById('issueModal').style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('maintenanceModal')) {
+                document.getElementById('maintenanceModal').style.display = 'none';
+            }
+            if (e.target === document.getElementById('inventoryModal')) {
+                document.getElementById('inventoryModal').style.display = 'none';
+            }
+            if (e.target === document.getElementById('issueModal')) {
+                document.getElementById('issueModal').style.display = 'none';
+            }
+        });
+
+        // Show modals
+        function showMaintenanceModal() {
+            document.getElementById('maintenanceModal').style.display = 'flex';
+        }
+
+        function showInventoryModal() {
+            document.getElementById('inventoryModal').style.display = 'flex';
+        }
+
+        function showIssueModal() {
+            document.getElementById('issueModal').style.display = 'flex';
+        }
+
+        // Load all data
+        async function loadAllData() {
+            try {
+                await Promise.all([
+                    loadRooms(),
+                    populateRoomDropdowns(),
+                    populateInventoryDropdown()
+                ]);
+            } catch (err) {
+                console.error('Error loading data:', err);
+                alert('Failed to load data. Please refresh.');
+            }
+        }
+
+        // Load rooms and populate kanban
+        async function loadRooms() {
+            const rooms = await apiFetch('/rooms');
+            
+            // Update stats
+            const dirtyCount = rooms.filter(room => room.housekeeping_state === 'dirty').length;
+            const cleanCount = rooms.filter(room => room.housekeeping_state === 'clean').length;
+            const maintenanceCount = rooms.filter(room => room.housekeeping_state === 'maintenance').length;
+            const occupiedCount = rooms.filter(room => room.status === 'occupied').length;
+            
+            document.getElementById('dirtyRoomsCount').textContent = dirtyCount;
+            document.getElementById('cleanRoomsCount').textContent = cleanCount;
+            document.getElementById('maintenanceRoomsCount').textContent = maintenanceCount;
+            document.getElementById('occupiedRoomsCount').textContent = occupiedCount;
+            
+            // Populate kanban columns
+            const dirtyRoomsEl = document.getElementById('dirtyRooms');
+            const cleanRoomsEl = document.getElementById('cleanRooms');
+            const maintenanceRoomsEl = document.getElementById('maintenanceRooms');
+            
+            dirtyRoomsEl.innerHTML = '';
+            cleanRoomsEl.innerHTML = '';
+            maintenanceRoomsEl.innerHTML = '';
+            
+            rooms.forEach(room => {
+                const item = document.createElement('div');
+                item.className = 'room-card';
+                item.dataset.roomId = room.id;
+                item.innerHTML = `
+                    <div class="room-name">${room.name}</div>
+                    <div class="room-details">${room.type}</div>
+                    <div class="badges">
+                        <span class="badge status-badge status-${room.status}">
+                            ${room.status === 'available' ? '🟢 Available' : room.status === 'occupied' ? '🔵 Occupied' : '🔧 Maintenance'}
+                        </span>
+                        <span class="badge hs-badge hs-${room.housekeeping_state}">
+                            ${room.housekeeping_state === 'dirty' ? '🔴 Dirty' : room.housekeeping_state === 'clean' ? '✅ Clean' : '🛠 Maintenance'}
+                        </span>
+                    </div>
+                    <div class="action-bar">
+                        <button class="action-btn dirty-btn" onclick="event.stopPropagation(); updateHousekeepingState(${room.id}, 'dirty')">Mark Dirty</button>
+                        <button class="action-btn clean-btn" onclick="event.stopPropagation(); updateHousekeepingState(${room.id}, 'clean')">Mark Clean</button>
+                        <button class="action-btn maint-btn" onclick="event.stopPropagation(); updateHousekeepingState(${room.id}, 'maintenance')">Maintenance</button>
+                    </div>
+                `;
+                
+                // Add to appropriate column based on housekeeping state
+                if (room.housekeeping_state === 'dirty') {
+                    dirtyRoomsEl.appendChild(item);
+                } else if (room.housekeeping_state === 'clean') {
+                    cleanRoomsEl.appendChild(item);
+                } else if (room.housekeeping_state === 'maintenance') {
+                    maintenanceRoomsEl.appendChild(item);
+                }
+            });
+            
+            // Initialize drag and drop
+            initKanban();
+        }
+        
+        // Initialize drag and drop functionality
+        function initKanban() {
+            const columns = document.querySelectorAll('.kanban-items');
+            columns.forEach(col => {
+                new Sortable(col, {
+                    group: 'kanban',
+                    animation: 150,
+                    onAdd: async function (evt) {
+                        const column = evt.to.closest('.kanban-column');
+                        const newHousekeepingState = column.querySelector('.kanban-header').textContent.toLowerCase();
+                        const roomId = parseInt(evt.item.dataset.roomId);
+                        
+                        // Map column headers to housekeeping states
+                        let state;
+                        if (newHousekeepingState.includes('dirty')) {
+                            state = 'dirty';
+                        } else if (newHousekeepingState.includes('clean')) {
+                            state = 'clean';
+                        } else if (newHousekeepingState.includes('maintenance')) {
+                            state = 'maintenance';
+                        } else {
+                            return; // Unknown column
+                        }
+                        
+                        if (!roomId) return;
+                        
+                        try {
+                            await apiFetch(`/rooms/${roomId}/housekeeping`, {
+                                method: 'POST',
+                                body: JSON.stringify({ housekeeping_state: state })
+                            });
+                            
+                            // Reload to reflect changes
+                            loadRooms();
+                        } catch (err) {
+                            console.error('Error updating room housekeeping state:', err);
+                            alert('Failed to update room housekeeping state');
+                        }
+                    }
+                });
+            });
+        }
+
+        // Populate room dropdowns in modals
+        async function populateRoomDropdowns() {
+            const rooms = await apiFetch('/rooms');
+            
+            // Maintenance form room dropdown
+            const maintenanceRoomSelect = document.getElementById('maintenanceRoom');
+            maintenanceRoomSelect.innerHTML = '<option value="">Select a room</option>';
+            rooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = `${room.name} (${room.type})`;
+                maintenanceRoomSelect.appendChild(option);
+            });
+            
+            // Issue form room dropdown
+            const issueRoomSelect = document.getElementById('issueRoom');
+            issueRoomSelect.innerHTML = '<option value="">Select a room</option>';
+            rooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = `${room.name} (${room.type})`;
+                issueRoomSelect.appendChild(option);
+            });
+        }
+
+        // Populate inventory dropdown
+        async function populateInventoryDropdown() {
+            const items = await apiFetch('/inventory-items');
+            
+            // Inventory form item dropdown
+            const inventoryItemSelect = document.getElementById('inventoryItem');
+            inventoryItemSelect.innerHTML = '<option value="">Select an item</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} (${item.current_stock} ${item.unit})`;
+                inventoryItemSelect.appendChild(option);
+            });
+            
+            // Issue form item dropdown
+            const issueItemSelect = document.getElementById('issueItem');
+            issueItemSelect.innerHTML = '<option value="">Select an item</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} (${item.current_stock} ${item.unit})`;
+                issueItemSelect.appendChild(option);
+            });
+        }
+
+        // Update housekeeping state
+        async function updateHousekeepingState(roomId, state) {
+            if (!confirm(`Mark room as ${state}?`)) return;
+            
+            try {
+                await apiFetch(`/rooms/${roomId}/housekeeping`, {
+                    method: 'POST',
+                    body: JSON.stringify({ housekeeping_state: state })
+                });
+                
+                loadRooms(); // Reload rooms to update the display
+            } catch (err) {
+                alert('Error updating housekeeping state');
+            }
+        }
+
+        // Maintenance form submission
+        document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const roomId = document.getElementById('maintenanceRoom').value;
+            const issue = document.getElementById('maintenanceIssue').value;
+            
+            if (!roomId || !issue) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                await apiFetch(`/rooms/${roomId}/housekeeping`, {
+                    method: 'POST',
+                    body: JSON.stringify({ housekeeping_state: 'maintenance' })
+                });
+                
+                document.getElementById('maintenanceForm').reset();
+                document.getElementById('maintenanceModal').style.display = 'none';
+                loadRooms(); // Reload rooms to update the display
+                alert('Maintenance issue reported successfully');
+            } catch (err) {
+                alert('Error reporting maintenance issue');
+            }
+        });
+
+        // Inventory request form submission
+        document.getElementById('inventoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const itemId = document.getElementById('inventoryItem').value;
+            const quantity = document.getElementById('inventoryQuantity').value;
+            const reason = document.getElementById('inventoryReason').value;
+            
+            if (!itemId || !quantity || !reason) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                await apiFetch('/stock-transactions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        item_id: parseInt(itemId),
+                        type: 'out',
+                        quantity: parseInt(quantity),
+                        reason: reason
+                    })
+                });
+                
+                document.getElementById('inventoryForm').reset();
+                document.getElementById('inventoryModal').style.display = 'none';
+                alert('Inventory request submitted successfully');
+            } catch (err) {
+                alert('Error submitting inventory request');
+            }
+        });
+
+        // Issue report form submission
+        document.getElementById('issueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const itemId = document.getElementById('issueItem').value;
+            const issueType = document.getElementById('issueType').value;
+            const quantity = document.getElementById('issueQuantity').value;
+            const roomId = document.getElementById('issueRoom').value;
+            
+            if (!itemId || !quantity || !roomId) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                // Send the issue report to the server
+                const response = await apiFetch('/accessories/report', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        item_id: parseInt(itemId),
+                        issue_type: issueType,
+                        quantity: parseInt(quantity),
+                        room_id: parseInt(roomId)
+                    })
+                });
+                
+                document.getElementById('issueForm').reset();
+                document.getElementById('issueModal').style.display = 'none';
+                alert('Issue reported successfully');
+            } catch (err) {
+                alert('Error reporting issue');
+            }
+        });
+
+        // Update date display
+        function updateDateDisplay() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString();
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDateDisplay();
+            loadAllData();
+            
+            // Set up checklist items
+            const checklistItems = document.querySelectorAll('.checklist-item input');
+            checklistItems.forEach(item => {
+                item.addEventListener('change', function() {
+                    const parent = this.parentElement;
+                    if (this.checked) {
+                        parent.classList.add('completed');
+                    } else {
+                        parent.classList.remove('completed');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
